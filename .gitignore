@@ -1,0 +1,22 @@
+.DS_Store
+
+# Keep these directories tracked
+!/agents/
+!/commands/
+
+# Ignore everything else currently in this repo
+/cache/
+/debug/
+/file-history/
+/paste-cache/
+/plans/
+/plugins/
+/projects/
+/shell-snapshots/
+/statsig/
+/telemetry/
+/todos/
+
+/history.jsonl
+/settings.json
+/stats-cache.json
