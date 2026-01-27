@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Registry of project-specific artifacts that inform AI workflow agents",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["filename", "description", "usage"],
+    "properties": {
+      "filename": {
+        "type": "string",
+        "description": "Filename relative to artifacts/ directory"
+      },
+      "description": {
+        "type": "string", 
+        "description": "What this artifact contains and when it's relevant"
+      },
+      "usage": {
+        "type": "string",
+        "enum": ["always", "decide"],
+        "description": "always = agent must consult; decide = agent determines relevance"
+      }
+    }
+  },
+  "examples": [
+    [
+      {
+        "filename": "ui-style-guide.md",
+        "description": "Visual design standards, component patterns, spacing and color tokens",
+        "usage": "decide"
+      },
+      {
+        "filename": "api-conventions.md",
+        "description": "REST API naming, versioning, error response formats",
+        "usage": "decide"
+      },
+      {
+        "filename": "testing-guidelines.md",
+        "description": "Test organization, naming, mocking strategies, coverage expectations",
+        "usage": "decide"
+      },
+      {
+        "filename": "business-glossary.md",
+        "description": "Domain terms and their precise meanings in this system",
+        "usage": "always"
+      },
+      {
+        "filename": "security-requirements.md",
+        "description": "Authentication, authorization, data handling requirements",
+        "usage": "always"
+      }
+    ]
+  ]
+}

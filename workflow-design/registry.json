@@ -1,0 +1,7 @@
+[
+  {
+    "filename": "ui-style-guide.md",
+    "description": "Visual design standards, component patterns, spacing and color tokens. Relevant for any UI changes.",
+    "usage": "decide"
+  }
+]
