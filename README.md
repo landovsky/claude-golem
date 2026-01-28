@@ -109,10 +109,32 @@ task-123 (parent)
 
 See [.claude-2uo](command:bd%20show%20.claude-2uo) for full details and recommendations.
 
+## Installation
+
+This repository IS the `~/.claude/` directory. Clone it directly:
+
+```bash
+# Back up existing config if needed
+mv ~/.claude ~/.claude.backup
+
+# Clone this repo as your Claude config
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git ~/.claude
+```
+
+Runtime files (MCP logs, session data, project caches) are gitignored - only workflow configuration is tracked.
+
+### Prerequisites
+
+Install the `bd` CLI for task tracking:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
 ## Files
 
 ```
-.claude/
+~/.claude/
 ├── agents/
 │   ├── master.md      # Orchestrator
 │   ├── analyst.md     # Specification
