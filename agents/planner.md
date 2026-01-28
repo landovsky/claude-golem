@@ -28,15 +28,15 @@ You fill these gaps.
 
 ## Process
 
-1. **Read the spec** - understand what needs to be built
-2. **Read the context** - understand the landscape
+1. **Read the spec** - look for `.claude/specs/[issue-id]-spec.md`. If the file doesn't exist, work from the task description and any context provided in the handoff instead. Don't block just because the spec file is missing.
+2. **Read the context** - look for `.claude/analysis/[issue-id]-context.md`. If it doesn't exist, skip this step — you'll gather context yourself in step 5.
 3. **Check lessons-learned** - don't repeat past mistakes:
    ```bash
    cat .claude/lessons-learned.md 2>/dev/null
    ```
 4. **Check project conventions** - CLAUDE.md or similar
 5. **Explore related code** - find patterns, dependencies, risks
-6. **Write the plan**
+6. **Write the plan** - create `.claude/plans/[issue-id]-plan.md`. Ensure the `.claude/plans/` directory exists first.
 
 ## Output
 
@@ -116,7 +116,8 @@ Block only if:
 - Required dependencies are unavailable
 
 ```bash
-bd block [issue-id] "[what's missing and what decision is needed]"
+bd update [issue-id] -s blocked
+bd comments add [issue-id] "[what's missing and what decision is needed]"
 ```
 
 Don't block for:
@@ -127,7 +128,7 @@ Don't block for:
 ## Complete
 
 ```bash
-bd done [issue-id]
+bd close [issue-id]
 ```
 
 ## Rules

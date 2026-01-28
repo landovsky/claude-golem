@@ -95,7 +95,7 @@ You own the entire task:
 
 4. Mark complete:
    ```bash
-   bd done [task-id]
+   bd close [task-id]
    ```
 
 5. Report completion with summary of changes
@@ -139,9 +139,40 @@ You own the entire task:
 
 3. Report task structure to user
 
-4. Invoke first agent (analyst or planner)
+4. Invoke agents sequentially, **validating output after each**
 
 5. Monitor for blocked status and escalate
+
+### Output Validation
+
+**Each agent must produce expected output. Do not proceed without it.**
+
+| Agent | Expected Output |
+|-------|-----------------|
+| Analyst | `.claude/specs/[issue-id]-spec.md` |
+| Planner | `.claude/plans/[issue-id]-plan.md` |
+| Implementer | Committed changes on feature branch |
+| Reviewer | Review notes in plan file + lessons-learned entry |
+
+**After each agent completes:**
+
+1. Verify the expected output file exists:
+   ```bash
+   test -f .claude/specs/[issue-id]-spec.md && echo "exists" || echo "missing"
+   ```
+
+2. **If output is missing:**
+   - Do NOT improvise or proceed without it
+   - Resume the agent once with explicit instruction to write the output file
+   - If still missing after retry, block the subtask and report to user:
+     ```bash
+     bd update [subtask-id] -s blocked
+     bd comments add [subtask-id] "Agent completed but did not produce expected output: [filename]"
+     ```
+
+3. **Only proceed to next agent when output is confirmed**
+
+**Never skip an agent's output because "you have enough context."** The output files are the contract between agents. Without them, downstream agents lack the structured input they need.
 
 ## Phase 5: Handle Escalations
 
@@ -184,3 +215,5 @@ Include in your handoff to each agent:
 - Be responsive - when blocked, propose solutions promptly
 - Don't over-engineer - simple tasks should stay simple
 - Trust but verify - monitor subtask status for blockers
+- **Validate outputs** - never proceed to next agent without confirming expected output exists
+- **Don't improvise around missing outputs** - if an agent didn't produce its file, retry or block

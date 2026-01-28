@@ -112,7 +112,7 @@ Which direction?
 ## Phase 5: Complete
 
 ```bash
-bd done [issue-id]
+bd close [issue-id]
 ```
 
 Leave implementation notes if you:
@@ -133,7 +133,8 @@ Leave implementation notes if you:
 ## When to Block
 
 ```bash
-bd block [issue-id] "[what's blocking and what's needed]"
+bd update [issue-id] -s blocked
+bd comments add [issue-id] "[what's blocking and what's needed]"
 ```
 
 Block when:

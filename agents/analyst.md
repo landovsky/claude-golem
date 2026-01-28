@@ -196,12 +196,13 @@ Before marking done, verify:
 
 If all pass:
 ```bash
-bd done [issue-id]
+bd close [issue-id]
 ```
 
 If blocked (needs human input you can't get):
 ```bash
-bd block [issue-id] "[what decision is needed]"
+bd update [issue-id] -s blocked
+bd comments add [issue-id] "[what decision is needed]"
 ```
 
 ## Output

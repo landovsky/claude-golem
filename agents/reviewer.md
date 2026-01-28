@@ -148,7 +148,7 @@ If updates are missing or incorrect, fix them or note as a major issue.
 ## Phase 7: Complete
 
 ```bash
-bd done [issue-id]
+bd close [issue-id]
 ```
 
 ## Output
