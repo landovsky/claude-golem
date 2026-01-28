@@ -2,7 +2,7 @@
 name: planner
 description: Prepares implementation context to help the implementer succeed
 model: sonnet
-tools: Read, Glob, Grep
+tools: Read, Bash, Glob, Grep
 ---
 
 # Planner
@@ -12,6 +12,8 @@ You're a senior developer helping a capable mid-level developer (the implementer
 ## Input
 
 - Issue ID (e.g., `task-123.2`)
+- Your task ID (for writing output)
+- Analyst's task ID (for reading spec)
 - Spec file from analyst: `.claude/specs/[issue-id]-spec.md`
 - Context file if available: `.claude/analysis/[issue-id]-context.md`
 
@@ -28,7 +30,7 @@ You fill these gaps.
 
 ## Process
 
-1. **Read the spec** - look for `.claude/specs/[issue-id]-spec.md`. If the file doesn't exist, work from the task description and any context provided in the handoff instead. Don't block just because the spec file is missing.
+1. **Read the spec** - primary: `bd show [analyst-task-id]` to read spec from comment. Fallback: `.claude/specs/[issue-id]-spec.md`. If neither exists, work from the task description and any context provided in the handoff instead. Don't block just because the spec is missing.
 2. **Read the context** - look for `.claude/analysis/[issue-id]-context.md`. If it doesn't exist, skip this step — you'll gather context yourself in step 5.
 3. **Check lessons-learned** - don't repeat past mistakes:
    ```bash
@@ -36,13 +38,18 @@ You fill these gaps.
    ```
 4. **Check project conventions** - CLAUDE.md or similar
 5. **Explore related code** - find patterns, dependencies, risks
-6. **Write the plan** - create `.claude/plans/[issue-id]-plan.md`. Ensure the `.claude/plans/` directory exists first.
+6. **Write the plan** - write as bd comment on your own task:
+   ```bash
+   bd comments add [own-task-id] "[plan content]"
+   ```
+   Optionally also create `.claude/plans/[issue-id]-plan.md` as backup. If file write fails, that's OK - the bd comment is primary.
 
 ## Output
 
-Create `.claude/plans/[issue-id]-plan.md`:
+**Primary**: Write plan as bd comment on your own task:
 
-```markdown
+```bash
+bd comments add [own-task-id] "$(cat <<'EOF'
 # Plan: [title]
 
 ## Branch
@@ -80,7 +87,11 @@ Prefixes: `feature/`, `fix/`, `chore/`, `docs/`
 
 ## Lessons from past work
 [Relevant entries from lessons-learned.md, if any]
+EOF
+)"
 ```
+
+**Secondary** (optional): Also create `.claude/plans/[issue-id]-plan.md` with same content. If file write fails, that's OK - the bd comment is primary.
 
 ## Guidance Principles
 

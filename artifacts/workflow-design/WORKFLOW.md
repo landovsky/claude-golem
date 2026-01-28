@@ -137,18 +137,46 @@ artifacts/
 4. **Implementer** follows artifact guidance, updates artifacts if spec requires
 5. **Reviewer** verifies artifact compliance and updates
 
-## File Outputs
+## Stage Outputs
+
+### Primary: bd Comments
+
+Each stage writes its output as a bd comment on its own subtask. This is the primary data transport between stages.
+
+**Data flow:**
+1. Master creates subtasks and passes task IDs to each agent
+2. Each agent writes output to `bd comments add [own-task-id] "[content]"`
+3. Downstream agents read via `bd show [upstream-task-id]`
+
+**Example:**
+```
+task-123.1 (analyst)    → writes spec as comment
+task-123.2 (planner)    → reads task-123.1, writes plan as comment
+task-123.3 (implementer) → reads task-123.1 + task-123.2, writes notes as comment
+task-123.4 (reviewer)   → reads all upstream tasks, writes review as comment
+```
+
+### Secondary: Files (Optional)
+
+Agents may optionally write files as backup. If file writes fail, that's OK - bd comments are the source of truth.
 
 ```
 .claude/
   analysis/
-    [issue-id]-context.md   # Analyst's exploration findings
+    [issue-id]-context.md   # Optional: Analyst's exploration findings
   specs/
-    [issue-id]-spec.md      # Analyst's specification
+    [issue-id]-spec.md      # Optional: Analyst's specification
   plans/
-    [issue-id]-plan.md      # Planner's implementation context
-  lessons-learned.md        # Reviewer's accumulated learnings (read by planner)
+    [issue-id]-plan.md      # Optional: Planner's implementation context
+  lessons-learned.md        # Required: Reviewer's accumulated learnings (read by planner)
 ```
+
+### Why bd Comments are Primary
+
+1. **No tool restrictions** - Works with any agent toolset (Read, Bash, etc.)
+2. **No CWD issues** - bd stores data in database, immune to working directory changes
+3. **Reliable** - No file existence checks, no Write tool dependency
+4. **Traceable** - All stage outputs visible via `bd show [task-id]`
 
 ## Blocked Handling
 

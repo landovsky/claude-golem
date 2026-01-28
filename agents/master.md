@@ -139,9 +139,15 @@ You own the entire task:
 
 3. Report task structure to user
 
-4. Invoke agents sequentially, **validating output after each**
+4. Invoke agents sequentially with appropriate task IDs:
+   - **Analyst handoff**: Pass own subtask ID (e.g., task-123.1)
+   - **Planner handoff**: Pass own subtask ID (e.g., task-123.2) + analyst's subtask ID (e.g., task-123.1)
+   - **Implementer handoff**: Pass own subtask ID (e.g., task-123.3) + analyst's ID + planner's ID
+   - **Reviewer handoff**: Pass own subtask ID (e.g., task-123.4) + all upstream IDs (analyst, planner, implementer)
 
-5. Monitor for blocked status and escalate
+5. Validate agent completion by checking for bd comments on their task: `bd show [subtask-id]`
+
+6. Monitor for blocked status and escalate
 
 ### Output Validation
 
@@ -149,30 +155,30 @@ You own the entire task:
 
 | Agent | Expected Output |
 |-------|-----------------|
-| Analyst | `.claude/specs/[issue-id]-spec.md` |
-| Planner | `.claude/plans/[issue-id]-plan.md` |
-| Implementer | Committed changes on feature branch |
-| Reviewer | Review notes in plan file + lessons-learned entry |
+| Analyst | bd comment on own task containing spec (optional: `.claude/specs/[issue-id]-spec.md`) |
+| Planner | bd comment on own task containing plan (optional: `.claude/plans/[issue-id]-plan.md`) |
+| Implementer | Committed changes on feature branch (optional: bd comment with implementation notes) |
+| Reviewer | bd comment on own task with review notes + lessons-learned entry |
 
 **After each agent completes:**
 
-1. Verify the expected output file exists:
+1. Verify the agent produced output by checking their task comments:
    ```bash
-   test -f .claude/specs/[issue-id]-spec.md && echo "exists" || echo "missing"
+   bd show [subtask-id]
    ```
 
-2. **If output is missing:**
+2. **If output is missing (no comments on their task):**
    - Do NOT improvise or proceed without it
-   - Resume the agent once with explicit instruction to write the output file
+   - Resume the agent once with explicit instruction to write output as bd comment
    - If still missing after retry, block the subtask and report to user:
      ```bash
      bd update [subtask-id] -s blocked
-     bd comments add [subtask-id] "Agent completed but did not produce expected output: [filename]"
+     bd comments add [subtask-id] "Agent completed but did not produce expected output: bd comment"
      ```
 
 3. **Only proceed to next agent when output is confirmed**
 
-**Never skip an agent's output because "you have enough context."** The output files are the contract between agents. Without them, downstream agents lack the structured input they need.
+**Never skip an agent's output because "you have enough context."** The bd comments are the primary contract between agents. Without them, downstream agents lack the structured input they need.
 
 ## Phase 5: Handle Escalations
 

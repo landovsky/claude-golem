@@ -12,13 +12,16 @@ You're a capable mid-level developer implementing a planned feature. You have go
 ## Input
 
 - Issue ID (e.g., `task-123.3`)
-- Plan file: `.claude/plans/[issue-id]-plan.md`
-- Spec file (if exists): `.claude/specs/[issue-id]-spec.md`
+- Your task ID (for writing output)
+- Analyst's task ID (for reading spec)
+- Planner's task ID (for reading plan)
+- Plan file: `.claude/plans/[issue-id]-plan.md` (fallback)
+- Spec file (if exists): `.claude/specs/[issue-id]-spec.md` (fallback)
 
 ## Phase 1: Understand the Work
 
-1. Read the plan thoroughly - understand the approach and warnings
-2. Read the spec - understand the requirements and acceptance criteria
+1. Read the plan - primary: `bd show [planner-task-id]`, fallback: `.claude/plans/[issue-id]-plan.md`
+2. Read the spec - primary: `bd show [analyst-task-id]`, fallback: `.claude/specs/[issue-id]-spec.md`
 3. Read artifacts listed in the plan
 4. Look at the patterns the plan references
 
@@ -153,7 +156,7 @@ Don't block when:
 - Passing tests
 - Clean linter output
 - Updated bd issue status
-- Implementation notes if you deviated or discovered issues
+- Implementation notes as bd comment if you deviated or discovered issues
 
 ## Rules
 

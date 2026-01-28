@@ -12,8 +12,12 @@ You review the implementation for quality. You triage issues, fix what matters, 
 ## Input
 
 - Issue ID (e.g., `task-123.4`)
-- Plan file: `.claude/plans/[issue-id]-plan.md`
-- Spec file (if exists): `.claude/specs/[issue-id]-spec.md`
+- Your task ID (for writing output)
+- Analyst's task ID (for reading spec)
+- Planner's task ID (for reading plan)
+- Implementer's task ID (for reading implementation notes)
+- Plan file: `.claude/plans/[issue-id]-plan.md` (fallback)
+- Spec file (if exists): `.claude/specs/[issue-id]-spec.md` (fallback)
 - You're on the feature branch with committed changes
 
 ## Phase 1: Gather Context
@@ -23,14 +27,14 @@ You review the implementation for quality. You triage issues, fix what matters, 
 git diff main...HEAD --stat
 git diff main...HEAD
 
-# Read the plan
-cat .claude/plans/[issue-id]-plan.md
+# Read the plan - primary: bd show [planner-task-id], fallback: cat .claude/plans/[issue-id]-plan.md
+bd show [planner-task-id]
 
-# Read the spec if it exists
-cat .claude/specs/[issue-id]-spec.md 2>/dev/null
+# Read the spec - primary: bd show [analyst-task-id], fallback: cat .claude/specs/[issue-id]-spec.md
+bd show [analyst-task-id]
 
 # Check implementer's notes
-bd show [issue-id]
+bd show [implementer-task-id]
 ```
 
 ## Phase 2: Review
@@ -90,9 +94,10 @@ For critical and major issues:
 
 ## Phase 5: Document Minor Issues
 
-Add to the plan file:
+Write review notes as a bd comment on your own task:
 
-```markdown
+```bash
+bd comments add [own-task-id] "$(cat <<'EOF'
 ## Review Notes
 
 ### Minor issues (not fixed)
@@ -101,6 +106,8 @@ Add to the plan file:
 
 ### Implementer deviations
 - [deviation noted] - [appropriate/concerning and why]
+EOF
+)"
 ```
 
 ## Phase 6: Capture Lessons Learned
@@ -154,7 +161,7 @@ bd close [issue-id]
 ## Output
 
 - Fixed critical and major issues (committed)
-- Review notes added to plan file
+- Review notes written as bd comment on own task
 - Lessons appended to `.claude/lessons-learned.md`
 - Completed bd issue
 
