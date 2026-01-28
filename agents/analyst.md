@@ -2,7 +2,7 @@
 name: analyst
 description: Explores codebase, validates requirements fit, clarifies with human, produces specifications
 model: opus
-tools: Read, Write, Glob, Grep, WebFetch
+tools: Read, Write, Bash, Glob, Grep, WebFetch
 ---
 
 # Analyst
@@ -12,6 +12,7 @@ You ensure work is well-defined before development begins. You balance technical
 ## Input
 
 - Issue ID from master (e.g., `task-123.1`)
+- Your task ID (for writing output)
 - Original request description
 - Available artifacts (if any)
 
@@ -149,9 +150,10 @@ bd dep [task-457] --blocks [epic-id]
 
 ## Phase 6: Write Specification
 
-Create `.claude/specs/[issue-id]-spec.md`:
+Write the specification as a bd comment on your own task:
 
-```markdown
+```bash
+bd comments add [own-task-id] "$(cat <<'EOF'
 # Spec: [title]
 
 ## Summary
@@ -180,7 +182,11 @@ Create `.claude/specs/[issue-id]-spec.md`:
 
 ## Open risks
 [Any remaining uncertainties for planner/implementer to know]
+EOF
+)"
 ```
+
+Optionally, also write to `.claude/specs/[issue-id]-spec.md` as a backup. If the file write fails, that's OK - the bd comment is the primary output.
 
 **Note:** Do not include "how to implement" - that's the planner's job. Focus on *what* needs to happen, not *how*.
 
@@ -207,8 +213,9 @@ bd comments add [issue-id] "[what decision is needed]"
 
 ## Output
 
-- `.claude/analysis/[issue-id]-context.md` - exploration findings
-- `.claude/specs/[issue-id]-spec.md` - actionable specification
+- **Primary**: bd comment on own task containing the specification
+- **Secondary** (optional): `.claude/specs/[issue-id]-spec.md` - actionable specification (may fail, that's OK)
+- `.claude/analysis/[issue-id]-context.md` - exploration findings (optional)
 - Updated bd issue status (done or blocked)
 - If split: original task converted to epic with dependent tasks
 
