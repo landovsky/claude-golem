@@ -16,6 +16,8 @@
 /statsig/
 /telemetry/
 /todos/
+/image-cache/
+/tasks/
 
 /history.jsonl
 /settings.json
