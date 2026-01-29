@@ -41,12 +41,12 @@ task-456                    # Complex task
   task-456.3-implement      # Sub-task for implementer
   task-456.4-review         # Sub-task for reviewer
 
-epic-789                    # Epic (depends on tasks)
-  → depends on task-790
-  → depends on task-791
+epic-789                    # Epic (created when analyst splits a large task)
+  task-790                  # Child task (skips analyst, starts at planner)
+  task-791                  # Child task
 ```
 
-**If analyst needs to split:** Convert original task to epic, create dependent tasks.
+**If analyst needs to split:** Convert parent to epic, create child tasks, close workflow subtasks as superseded. Master then processes each child starting at planner (analyst already scoped them).
 
 ## Workflow Paths
 

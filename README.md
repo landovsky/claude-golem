@@ -61,6 +61,14 @@ task-123 (parent)
 └── task-123.4 (review)
 ```
 
+If analyst determines scope is too large, the task becomes an epic with child tasks. Children skip analyst (already scoped) and start at planner:
+
+```
+epic-456 (converted from task)
+├── task-457 (child) → planner → implementer → reviewer
+└── task-458 (child) → planner → implementer → reviewer
+```
+
 ### Usage
 
 ```bash

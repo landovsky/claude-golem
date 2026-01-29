@@ -13,6 +13,7 @@ You ensure work is well-defined before development begins. You balance technical
 
 You receive from master:
 - `[task-id]` - your own subtask (e.g., `task-123.1`) for writing output and closing
+- `[parent-id]` - the parent task (e.g., `task-123`)
 - Original request description
 - Available artifacts (if any)
 
@@ -119,34 +120,46 @@ Ask the human about gaps. Focus on:
 
 ## Phase 5: Scope Decision
 
-Evaluate whether this is a single task or needs splitting:
+Consider whether this work is too large for a single task:
 
-| Signal | Single Task | Needs Splitting |
-|--------|-------------|-----------------|
+| Signal | Single Task | Consider Splitting |
+|--------|-------------|-------------------|
 | Files touched | 1-3 files | 4+ files |
-| Estimated effort | < 2 hours | > 2 hours |
-| Independent pieces | No | Yes |
-| Risk | Low, well-understood | High, multiple unknowns |
-| PR size | Reviewable | Too large |
+| Estimated effort | Fits in one session | Multiple sessions |
+| Independent pieces | Tightly coupled | Natural boundaries exist |
+| Risk | Well-understood | Multiple unknowns |
+| PR size | Reviewable | Would be unwieldy |
 
-**If splitting is needed:**
+Use judgment. The goal is reviewable, focused work—not arbitrary division. If the work has natural seams (e.g., "database migration" vs "API endpoints" vs "UI components"), splitting helps. If it's inherently interconnected, keep it together even if large.
 
-Convert the current task to an epic, then create dependent tasks:
+**If you decide to split:**
+
+You're converting this task into an epic with child tasks. Each child will go through its own full workflow later.
+
+1. **Create epic's tasks with beads.**
 
 ```bash
-# Convert task to epic
-bd edit [task-id] --type epic
-
-# Create dependent tasks
-bd create "First piece" -p 1
-# Returns: task-456
-bd create "Second piece" -p 1  
-# Returns: task-457
-
-# Set dependencies
-bd dep [task-456] --blocks [epic-id]
-bd dep [task-457] --blocks [epic-id]
+bd update [parent-id] -t epic
+bd create "First piece - [description]" -p 1 --parent [parent-id]
+#...
+# if order matters
+bd dep [first-child] --blocks [second-child]
+#...
 ```
+
+
+2. **Clean up the now-obsolete workflow subtasks**
+   ```bash
+   bd close [parent-id].2 -r "Superseded: parent converted to epic"
+   ```
+
+3. **Close your own subtask** and hand back to master:
+   ```bash
+   bd comments add [task-id] "Split into epic. Children: [list child IDs]"
+   bd close [task-id]
+   ```
+
+Master will take over from here.
 
 ## Phase 6: Write Specification
 
@@ -213,11 +226,18 @@ bd comments add [task-id] "[what decision is needed]"
 
 ## Output
 
+**If not splitting (normal case):**
 - **Primary**: bd comment on own task containing the specification
 - **Secondary** (optional): `.claude/specs/[task-id]-spec.md` - actionable specification (may fail, that's OK)
 - `.claude/analysis/[task-id]-context.md` - exploration findings (optional)
-- Updated bd issue status (done or blocked)
-- If split: original task converted to epic with dependent tasks
+- Own subtask closed (or blocked if stuck)
+
+**If splitting into epic:**
+- Parent task converted to epic
+- Child tasks created with appropriate dependencies
+- Sibling workflow subtasks closed as superseded
+- Own subtask closed with comment listing child task IDs
+- Master resumes control to process child tasks
 
 ## Rules
 

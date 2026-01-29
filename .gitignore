@@ -22,3 +22,7 @@
 /history.jsonl
 /settings.json
 /stats-cache.json
+
+# bv (beads viewer) local config and caches
+.bv/
+.beads/.bv.lock

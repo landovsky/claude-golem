@@ -161,9 +161,13 @@ You own the entire task:
 
 3. Report task structure to user
 
-4. Invoke first agent (analyst or planner)
+4. Invoke first agent with required context:
+   - **Analyst**: Pass `[parent-id]` and `[task-id]`
+   - **Planner**: Pass `[task-id]` and upstream subtask IDs to read
 
-5. Monitor for blocked status and escalate
+5. After analyst completes, check the parent task type. The analyst may convert it to an epic if scope was too large. If so, process each of the epic's child tasks (`bd children [parent-id]`) through the workflow starting at planner (the analyst already scoped them when splitting). Close the epic once all children are complete.
+
+6. Monitor for blocked status and escalate
 
 ## Phase 5: Handle Escalations
 
