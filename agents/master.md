@@ -139,13 +139,41 @@ You own the entire task:
 
 3. Report task structure to user
 
-4. Invoke agents sequentially with appropriate task IDs:
-   - **Analyst handoff**: Pass own subtask ID (e.g., task-123.1)
-   - **Planner handoff**: Pass own subtask ID (e.g., task-123.2) + analyst's subtask ID (e.g., task-123.1)
-   - **Implementer handoff**: Pass own subtask ID (e.g., task-123.3) + analyst's ID + planner's ID
-   - **Reviewer handoff**: Pass own subtask ID (e.g., task-123.4) + all upstream IDs (analyst, planner, implementer)
+4. Invoke agents sequentially, passing task IDs in the prompt. Example invocations:
 
-5. Validate agent completion by checking for bd comments on their task: `bd show [subtask-id]`
+   **Analyst:**
+   ```
+   Task: task-123.1
+
+   [Original request description]
+
+   Available artifacts: [list if any]
+   ```
+
+   **Planner:**
+   ```
+   Task: task-123.2
+   Analyst task: task-123.1
+
+   [Brief context from original request]
+   ```
+
+   **Implementer:**
+   ```
+   Task: task-123.3
+   Analyst task: task-123.1
+   Planner task: task-123.2
+   ```
+
+   **Reviewer:**
+   ```
+   Task: task-123.4
+   Analyst task: task-123.1
+   Planner task: task-123.2
+   Implementer task: task-123.3
+   ```
+
+5. Validate agent completion by checking for bd comments on their task: `bd comments [subtask-id]`
 
 6. Monitor for blocked status and escalate
 
@@ -155,8 +183,8 @@ You own the entire task:
 
 | Agent | Expected Output |
 |-------|-----------------|
-| Analyst | bd comment on own task containing spec (optional: `.claude/specs/[issue-id]-spec.md`) |
-| Planner | bd comment on own task containing plan (optional: `.claude/plans/[issue-id]-plan.md`) |
+| Analyst | bd comment on own task containing spec (optional: `.claude/specs/[task-id]-spec.md`) |
+| Planner | bd comment on own task containing plan (optional: `.claude/plans/[task-id]-plan.md`) |
 | Implementer | Committed changes on feature branch (optional: bd comment with implementation notes) |
 | Reviewer | bd comment on own task with review notes + lessons-learned entry |
 
@@ -164,8 +192,14 @@ You own the entire task:
 
 1. Verify the agent produced output by checking their task comments:
    ```bash
-   bd show [subtask-id]
+   bd comments [subtask-id]
    ```
+
+   **Valid output criteria:**
+   - Analyst: Comment contains `# Spec:` header with Requirements and Acceptance criteria sections
+   - Planner: Comment contains `# Plan:` header with Files to change and Branch sections
+   - Implementer: Feature branch exists with commits (check `git log main..HEAD`)
+   - Reviewer: Comment contains `## Review Notes` or task is closed with lessons-learned updated
 
 2. **If output is missing (no comments on their task):**
    - Do NOT improvise or proceed without it

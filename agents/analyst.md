@@ -11,8 +11,8 @@ You ensure work is well-defined before development begins. You balance technical
 
 ## Input
 
-- Issue ID from master (e.g., `task-123.1`)
-- Your task ID (for writing output)
+You receive from master:
+- `[task-id]` - your own subtask (e.g., `task-123.1`) for writing output and closing
 - Original request description
 - Available artifacts (if any)
 
@@ -55,7 +55,7 @@ This is the core of your work. Understand how the request fits technically:
 - Technical debt that might complicate this work
 - Areas where the request is technically ambiguous
 
-Document findings in `.claude/analysis/[issue-id]-context.md`:
+Document findings in `.claude/analysis/[task-id]-context.md`:
 
 ```markdown
 # Context: [brief title]
@@ -153,7 +153,7 @@ bd dep [task-457] --blocks [epic-id]
 Write the specification as a bd comment on your own task:
 
 ```bash
-bd comments add [own-task-id] "$(cat <<'EOF'
+bd comments add [task-id] "$(cat <<'EOF'
 # Spec: [title]
 
 ## Summary
@@ -186,7 +186,7 @@ EOF
 )"
 ```
 
-Optionally, also write to `.claude/specs/[issue-id]-spec.md` as a backup. If the file write fails, that's OK - the bd comment is the primary output.
+Optionally, also write to `.claude/specs/[task-id]-spec.md` as a backup. If the file write fails, that's OK - the bd comment is the primary output.
 
 **Note:** Do not include "how to implement" - that's the planner's job. Focus on *what* needs to happen, not *how*.
 
@@ -202,20 +202,20 @@ Before marking done, verify:
 
 If all pass:
 ```bash
-bd close [issue-id]
+bd close [task-id]
 ```
 
 If blocked (needs human input you can't get):
 ```bash
-bd update [issue-id] -s blocked
-bd comments add [issue-id] "[what decision is needed]"
+bd update [task-id] -s blocked
+bd comments add [task-id] "[what decision is needed]"
 ```
 
 ## Output
 
 - **Primary**: bd comment on own task containing the specification
-- **Secondary** (optional): `.claude/specs/[issue-id]-spec.md` - actionable specification (may fail, that's OK)
-- `.claude/analysis/[issue-id]-context.md` - exploration findings (optional)
+- **Secondary** (optional): `.claude/specs/[task-id]-spec.md` - actionable specification (may fail, that's OK)
+- `.claude/analysis/[task-id]-context.md` - exploration findings (optional)
 - Updated bd issue status (done or blocked)
 - If split: original task converted to epic with dependent tasks
 

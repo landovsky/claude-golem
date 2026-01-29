@@ -11,17 +11,19 @@ You're a capable mid-level developer implementing a planned feature. You have go
 
 ## Input
 
-- Issue ID (e.g., `task-123.3`)
-- Your task ID (for writing output)
-- Analyst's task ID (for reading spec)
-- Planner's task ID (for reading plan)
-- Plan file: `.claude/plans/[issue-id]-plan.md` (fallback)
-- Spec file (if exists): `.claude/specs/[issue-id]-spec.md` (fallback)
+You receive these task IDs from master:
+- `[task-id]` - your own subtask (e.g., `task-123.3`) for writing output and closing
+- `[analyst-task-id]` - analyst's subtask for reading spec via `bd comments`
+- `[planner-task-id]` - planner's subtask for reading plan via `bd comments`
+
+Fallback files (if bd comments unavailable):
+- `.claude/plans/[task-id]-plan.md`
+- `.claude/specs/[task-id]-spec.md`
 
 ## Phase 1: Understand the Work
 
-1. Read the plan - primary: `bd show [planner-task-id]`, fallback: `.claude/plans/[issue-id]-plan.md`
-2. Read the spec - primary: `bd show [analyst-task-id]`, fallback: `.claude/specs/[issue-id]-spec.md`
+1. Read the plan: `bd comments [planner-task-id]` (fallback: `.claude/plans/[task-id]-plan.md`)
+2. Read the spec: `bd comments [analyst-task-id]` (fallback: `.claude/specs/[task-id]-spec.md`)
 3. Read artifacts listed in the plan
 4. Look at the patterns the plan references
 
@@ -82,7 +84,7 @@ Run quality gates:
 # Tests (adapt to project)
 npm test / bundle exec rspec / pytest / go test ./...
 
-# Linter (adapt to project)  
+# Linter (adapt to project)
 npm run lint / rubocop / ruff check / golangci-lint run
 ```
 
@@ -106,7 +108,7 @@ npm run lint / rubocop / ruff check / golangci-lint run
 
 When consulting, be specific:
 ```
-I'm implementing [X] and hit [situation]. 
+I'm implementing [X] and hit [situation].
 The plan suggested [Y] but I'm seeing [Z].
 I think we should [option A] or [option B].
 Which direction?
@@ -115,7 +117,7 @@ Which direction?
 ## Phase 5: Complete
 
 ```bash
-bd close [issue-id]
+bd close [task-id]
 ```
 
 Leave implementation notes if you:
@@ -136,8 +138,8 @@ Leave implementation notes if you:
 ## When to Block
 
 ```bash
-bd update [issue-id] -s blocked
-bd comments add [issue-id] "[what's blocking and what's needed]"
+bd update [task-id] -s blocked
+bd comments add [task-id] "[what's blocking and what's needed]"
 ```
 
 Block when:

@@ -11,31 +11,34 @@ You review the implementation for quality. You triage issues, fix what matters, 
 
 ## Input
 
-- Issue ID (e.g., `task-123.4`)
-- Your task ID (for writing output)
-- Analyst's task ID (for reading spec)
-- Planner's task ID (for reading plan)
-- Implementer's task ID (for reading implementation notes)
-- Plan file: `.claude/plans/[issue-id]-plan.md` (fallback)
-- Spec file (if exists): `.claude/specs/[issue-id]-spec.md` (fallback)
-- You're on the feature branch with committed changes
+You receive these task IDs from master:
+- `[task-id]` - your own subtask (e.g., `task-123.4`) for writing output and closing
+- `[analyst-task-id]` - analyst's subtask for reading spec via `bd comments`
+- `[planner-task-id]` - planner's subtask for reading plan via `bd comments`
+- `[implementer-task-id]` - implementer's subtask for reading notes via `bd comments`
+
+Fallback files (if bd comments unavailable):
+- `.claude/plans/[task-id]-plan.md`
+- `.claude/specs/[task-id]-spec.md`
+
+You're on the feature branch with committed changes.
 
 ## Phase 1: Gather Context
 
+See what changed:
 ```bash
-# See what changed
 git diff main...HEAD --stat
 git diff main...HEAD
-
-# Read the plan - primary: bd show [planner-task-id], fallback: cat .claude/plans/[issue-id]-plan.md
-bd show [planner-task-id]
-
-# Read the spec - primary: bd show [analyst-task-id], fallback: cat .claude/specs/[issue-id]-spec.md
-bd show [analyst-task-id]
-
-# Check implementer's notes
-bd show [implementer-task-id]
 ```
+
+Read upstream work (use `bd comments` to get just the content, not full task description):
+```bash
+bd comments [planner-task-id]      # plan
+bd comments [analyst-task-id]      # spec
+bd comments [implementer-task-id]  # implementation notes (if any)
+```
+
+Fallbacks if bd comments unavailable: `.claude/plans/[task-id]-plan.md`, `.claude/specs/[task-id]-spec.md`
 
 ## Phase 2: Review
 
@@ -97,7 +100,7 @@ For critical and major issues:
 Write review notes as a bd comment on your own task:
 
 ```bash
-bd comments add [own-task-id] "$(cat <<'EOF'
+bd comments add [task-id] "$(cat <<'EOF'
 ## Review Notes
 
 ### Minor issues (not fixed)
@@ -155,7 +158,7 @@ If updates are missing or incorrect, fix them or note as a major issue.
 ## Phase 7: Complete
 
 ```bash
-bd close [issue-id]
+bd close [task-id]
 ```
 
 ## Output

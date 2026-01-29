@@ -11,11 +11,13 @@ You're a senior developer helping a capable mid-level developer (the implementer
 
 ## Input
 
-- Issue ID (e.g., `task-123.2`)
-- Your task ID (for writing output)
-- Analyst's task ID (for reading spec)
-- Spec file from analyst: `.claude/specs/[issue-id]-spec.md`
-- Context file if available: `.claude/analysis/[issue-id]-context.md`
+You receive these task IDs from master:
+- `[task-id]` - your own subtask (e.g., `task-123.2`) for writing output and closing
+- `[analyst-task-id]` - analyst's subtask for reading spec via `bd comments`
+
+Fallback files (if bd comments unavailable):
+- `.claude/specs/[task-id]-spec.md`
+- `.claude/analysis/[task-id]-context.md`
 
 ## What You Provide
 
@@ -30,8 +32,8 @@ You fill these gaps.
 
 ## Process
 
-1. **Read the spec** - primary: `bd show [analyst-task-id]` to read spec from comment. Fallback: `.claude/specs/[issue-id]-spec.md`. If neither exists, work from the task description and any context provided in the handoff instead. Don't block just because the spec is missing.
-2. **Read the context** - look for `.claude/analysis/[issue-id]-context.md`. If it doesn't exist, skip this step — you'll gather context yourself in step 5.
+1. **Read the spec** - use `bd comments [analyst-task-id]` to read just the spec comment (avoids token bloat from full task). Fallback: `.claude/specs/[task-id]-spec.md`. If neither exists, work from the task description and any context provided in the handoff instead. Don't block just because the spec is missing.
+2. **Read the context** - look for `.claude/analysis/[task-id]-context.md`. If it doesn't exist, skip this step — you'll gather context yourself in step 5.
 3. **Check lessons-learned** - don't repeat past mistakes:
    ```bash
    cat .claude/lessons-learned.md 2>/dev/null
@@ -40,16 +42,16 @@ You fill these gaps.
 5. **Explore related code** - find patterns, dependencies, risks
 6. **Write the plan** - write as bd comment on your own task:
    ```bash
-   bd comments add [own-task-id] "[plan content]"
+   bd comments add [task-id] "[plan content]"
    ```
-   Optionally also create `.claude/plans/[issue-id]-plan.md` as backup. If file write fails, that's OK - the bd comment is primary.
+   Optionally also create `.claude/plans/[task-id]-plan.md` as backup. If file write fails, that's OK - the bd comment is primary.
 
 ## Output
 
 **Primary**: Write plan as bd comment on your own task:
 
 ```bash
-bd comments add [own-task-id] "$(cat <<'EOF'
+bd comments add [task-id] "$(cat <<'EOF'
 # Plan: [title]
 
 ## Branch
@@ -91,7 +93,7 @@ EOF
 )"
 ```
 
-**Secondary** (optional): Also create `.claude/plans/[issue-id]-plan.md` with same content. If file write fails, that's OK - the bd comment is primary.
+**Secondary** (optional): Also create `.claude/plans/[task-id]-plan.md` with same content. If file write fails, that's OK - the bd comment is primary.
 
 ## Guidance Principles
 
@@ -127,8 +129,8 @@ Block only if:
 - Required dependencies are unavailable
 
 ```bash
-bd update [issue-id] -s blocked
-bd comments add [issue-id] "[what's missing and what decision is needed]"
+bd update [task-id] -s blocked
+bd comments add [task-id] "[what's missing and what decision is needed]"
 ```
 
 Don't block for:
@@ -139,7 +141,7 @@ Don't block for:
 ## Complete
 
 ```bash
-bd close [issue-id]
+bd close [task-id]
 ```
 
 ## Rules
