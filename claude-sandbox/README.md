@@ -1,0 +1,226 @@
+# Claude Sandbox
+
+Run Claude Code autonomously in an isolated Docker environment with full permissions (`--dangerously-skip-permissions`).
+
+## Why?
+
+When you want Claude to work on tasks without supervision:
+- **Isolation**: Fresh git clone, doesn't touch your local checkout
+- **Safety**: Protected branches (main/master/production) can't be force-pushed
+- **Notifications**: Get Telegram alerts when Claude finishes or gets stuck
+- **Reproducibility**: Same environment locally and remotely
+- **Full stack**: PostgreSQL, Redis, Chrome (for system tests) included
+
+## Quick Start
+
+### Local (Docker Compose)
+
+```bash
+# Get OAuth token (one-time setup, valid 1 year)
+claude setup-token
+# Complete browser login, save the sk-ant-oat01-... token
+
+# Set required environment variables
+export GITHUB_TOKEN="ghp_..."
+export CLAUDE_CODE_OAUTH_TOKEN="sk-ant-oat01-..."  # From setup-token
+export REPO_URL="https://github.com/you/your-repo.git"
+
+# Optional: Telegram notifications
+export TELEGRAM_BOT_TOKEN="123456789:ABC..."
+export TELEGRAM_CHAT_ID="-100..."
+
+# Run Claude on a task
+bin/claude-sandbox local "fix the authentication bug in login controller"
+```
+
+### Remote (Kubernetes/k3s)
+
+```bash
+# First, create secrets in your cluster
+kubectl create secret generic claude-sandbox-secrets \
+  --from-literal=GITHUB_TOKEN="$GITHUB_TOKEN" \
+  --from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  --from-literal=REPO_URL="$REPO_URL" \
+  --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
+  --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
+
+# Build and push image
+bin/claude-sandbox build
+export CLAUDE_REGISTRY="ghcr.io/yourusername"
+bin/claude-sandbox push
+
+# Run remotely
+export CLAUDE_IMAGE="$CLAUDE_REGISTRY/claude-sandbox:latest"
+bin/claude-sandbox remote "implement user profile page"
+
+# Watch logs
+bin/claude-sandbox logs
+```
+
+## Environment Variables
+
+### Required
+
+| Variable | Description |
+|----------|-------------|
+| `GITHUB_TOKEN` | GitHub personal access token with `repo` scope |
+| `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token from `claude setup-token` (valid 1 year, uses your Claude subscription) |
+| `REPO_URL` | Repository URL (e.g., `https://github.com/you/repo.git`) |
+
+### Optional
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | - | Alternative to OAuth token (pay-as-you-go API) |
+| `REPO_BRANCH` | `main` | Branch to clone and start from |
+| `TELEGRAM_BOT_TOKEN` | - | Telegram bot token for notifications |
+| `TELEGRAM_CHAT_ID` | - | Telegram chat ID to receive notifications |
+| `CLAUDE_IMAGE` | `claude-sandbox:latest` | Docker image for remote runs |
+| `CLAUDE_REGISTRY` | - | Registry for pushing images |
+
+### Getting OAuth Token
+
+```bash
+# Run once, token valid for 1 year
+claude setup-token
+
+# Complete browser login
+# Save the sk-ant-oat01-... token securely
+```
+
+## Commands
+
+```bash
+bin/claude-sandbox local <task>    # Run locally with Docker Compose
+bin/claude-sandbox remote <task>   # Run on k8s cluster
+bin/claude-sandbox build           # Build the Docker image
+bin/claude-sandbox push            # Push image to registry
+bin/claude-sandbox logs            # Follow logs of running k8s job
+bin/claude-sandbox clean           # Clean up completed k8s jobs
+```
+
+## Workflow Agents
+
+The build process (`bin/claude-sandbox build`) bakes your workflow agents into the image:
+
+```
+~/.claude/agents/       → /home/claude/.claude/agents/
+~/.claude/artifacts/    → /home/claude/.claude/artifacts/
+~/.claude/commands/    → /home/claude/.claude/commands/
+```
+
+This means:
+- Agents are versioned with each image build
+- No runtime dependencies on host filesystem
+- Works identically locally and on k8s
+- **Rebuild the image when you update agents**
+
+## What's Included
+
+The sandbox container includes:
+- Ruby 3.4.x (matches project)
+- Node.js 20 LTS
+- PostgreSQL 16 client
+- Redis 7 client
+- Google Chrome (for Capybara system tests)
+- beads (`bd`) for task tracking
+- Claude Code CLI
+
+## Safety Features
+
+### Protected Branches
+
+The `safe-git` wrapper intercepts git commands and blocks:
+- `git push --force origin main`
+- `git push --force origin master`
+- `git push --force origin production`
+
+Direct pushes to protected branches trigger a warning but are allowed (your GitHub branch protection should be the final gate).
+
+### Fresh Clone
+
+Each run starts with a fresh `git clone`. Your local working directory is never touched. Claude works on its own copy.
+
+### Telegram Notifications
+
+When configured, you'll receive a message when:
+- Claude completes the task (exit code 0)
+- Claude fails (non-zero exit code)
+- The session is interrupted (Ctrl+C or timeout)
+
+## Directory Structure
+
+```
+docker/claude-sandbox/
+├── Dockerfile              # Dev environment image
+├── docker-compose.yml      # Local orchestration
+├── entrypoint.sh           # Clone, setup, run Claude
+├── safe-git                # Git wrapper (force-push protection)
+├── notify-telegram.sh      # Telegram notification script
+├── README.md               # This file
+└── k8s/
+    ├── job-template.yaml   # K8s Job template
+    └── secrets.yaml.example # Secrets template
+```
+
+## Workflow Integration
+
+This sandbox is designed to work with the multi-agent workflow system:
+
+1. **Master** receives task via `TASK` environment variable
+2. Claude assesses and either fast-tracks or delegates to Analyst → Planner → Implementer → Reviewer
+3. Work happens on feature branches (Claude decides naming)
+4. On completion, creates PR to main (if configured)
+5. Telegram notification sent
+
+## Customization
+
+### Change Ruby Version
+
+Edit `docker-compose.yml`:
+```yaml
+build:
+  args:
+    RUBY_VERSION: "3.3.0"  # Change this
+```
+
+### Add System Dependencies
+
+Edit `Dockerfile`, add to the `apt-get install` line.
+
+### Modify Protected Branches
+
+Edit `docker/claude-sandbox/safe-git`:
+```bash
+PROTECTED_BRANCHES="main master production staging"  # Add branches here
+```
+
+## Troubleshooting
+
+### "Permission denied" on bin/claude-sandbox
+
+```bash
+chmod +x bin/claude-sandbox
+```
+
+### Chrome crashes with "session deleted"
+
+The container needs shared memory. For local runs, `shm_size: 2gb` is set in docker-compose.yml. For k8s, an emptyDir volume is mounted at `/dev/shm`.
+
+### "Cannot connect to database"
+
+Ensure postgres and redis services are healthy before claude starts. The compose file has health checks configured.
+
+### Telegram not working
+
+1. Check bot token is correct (from @BotFather)
+2. Check chat ID (use @userinfobot to get yours)
+3. For groups, chat ID should be negative (e.g., `-1001234567890`)
+4. Ensure the bot is a member of the group/channel
+
+## Security Notes
+
+- The container runs as non-root user `claude`
+- GitHub token is only used for git operations (clone/push)
+- No secrets are persisted - container is ephemeral
+- Consider using GitHub fine-grained tokens with minimal scope

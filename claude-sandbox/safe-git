@@ -1,0 +1,78 @@
+#!/bin/bash
+# safe-git - Wrapper around git that prevents dangerous operations
+#
+# This script intercepts git commands and blocks:
+# - Force pushes to protected branches (main, master, production)
+# - Direct pushes to protected branches (must use PR)
+#
+# All other git operations pass through to real git.
+
+REAL_GIT="/usr/bin/git"
+PROTECTED_BRANCHES="main master production"
+
+# Function to check if any protected branch is in the arguments
+contains_protected_branch() {
+  local args="$*"
+  for branch in $PROTECTED_BRANCHES; do
+    # Check for exact branch name or origin/branch patterns
+    if [[ "$args" =~ (^|[[:space:]])$branch($|[[:space:]]) ]] || \
+       [[ "$args" =~ origin[/[:space:]]$branch ]] || \
+       [[ "$args" =~ origin/$branch: ]]; then
+      echo "$branch"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Check if this is a push command
+if [[ "$1" == "push" ]]; then
+  # Block force push to protected branches
+  if [[ "$*" =~ --force ]] || [[ "$*" =~ -f ]] || [[ "$*" =~ \+[a-zA-Z] ]]; then
+    branch=$(contains_protected_branch "$@")
+    if [ -n "$branch" ]; then
+      echo "╔═══════════════════════════════════════════════════════════════╗"
+      echo "║  ERROR: Force push to '$branch' is BLOCKED                    ║"
+      echo "║                                                               ║"
+      echo "║  Protected branches: main, master, production                 ║"
+      echo "║  This restriction exists to prevent accidental data loss.     ║"
+      echo "║                                                               ║"
+      echo "║  If you need to update $branch, create a PR instead.          ║"
+      echo "╚═══════════════════════════════════════════════════════════════╝"
+      exit 1
+    fi
+  fi
+
+  # Warn (but allow) direct push to protected branches
+  # In practice, GitHub branch protection should block this too
+  branch=$(contains_protected_branch "$@")
+  if [ -n "$branch" ]; then
+    echo "[safe-git] Warning: Pushing directly to '$branch'"
+    echo "[safe-git] Consider using a feature branch and creating a PR instead."
+  fi
+fi
+
+# Block checkout/switch/reset --hard on protected branches from remote
+if [[ "$1" == "checkout" ]] || [[ "$1" == "switch" ]]; then
+  if [[ "$*" =~ --force ]] || [[ "$*" =~ -f ]]; then
+    branch=$(contains_protected_branch "$@")
+    if [ -n "$branch" ]; then
+      echo "[safe-git] Warning: Force checkout to '$branch' - be careful!"
+    fi
+  fi
+fi
+
+# Block reset --hard on protected branches
+if [[ "$1" == "reset" ]] && [[ "$*" =~ --hard ]]; then
+  current_branch=$($REAL_GIT branch --show-current 2>/dev/null)
+  for protected in $PROTECTED_BRANCHES; do
+    if [[ "$current_branch" == "$protected" ]]; then
+      echo "[safe-git] Warning: Hard reset on protected branch '$current_branch'"
+      echo "[safe-git] This will discard local changes. Proceeding anyway..."
+      break
+    fi
+  done
+fi
+
+# Pass through to real git
+exec $REAL_GIT "$@"

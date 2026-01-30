@@ -1,0 +1,74 @@
+# Claude Sandbox - Local development environment
+#
+# Usage:
+#   docker compose run --rm -e TASK="work on task 123" claude
+#
+# Or use the launcher script:
+#   bin/claude-sandbox local "work on task 123"
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_USER: claude
+      POSTGRES_PASSWORD: claude
+      POSTGRES_DB: hriste_development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U claude"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  claude:
+    image: claude-sandbox:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgis://claude:claude@postgres:5432/hriste_development
+      REDIS_URL: redis://redis:6379
+      # Secrets (provide via env or .env file)
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      # Auth: Use OAuth token (from `claude setup-token`) OR API key
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      APP_HOST: ${APP_HOST}
+      # Repository
+      REPO_URL: ${REPO_URL}
+      REPO_BRANCH: ${REPO_BRANCH:-main}
+      # Task to work on
+      TASK: ${TASK}
+      # Rails
+      RAILS_ENV: development
+      # Chromium for Capybara
+      CHROME_BIN: /usr/bin/chromium-browser
+      SELENIUM_DRIVER_URL: ""
+    volumes:
+      # QUICK FIX FOR LOCAL TESTING - Remove for production/k8s
+      # Persists workspace between runs to cache gems/node_modules
+      # TODO: Remove this and use fresh clones for production
+      - claude_workspace:/workspace
+    stdin_open: true
+    tty: true
+    # Allow more memory for Chrome
+    shm_size: 2gb
+
+volumes:
+  postgres_data:
+  # QUICK FIX FOR LOCAL TESTING - Remove for production
+  claude_workspace:

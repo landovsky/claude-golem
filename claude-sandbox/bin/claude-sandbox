@@ -1,0 +1,288 @@
+#!/bin/bash
+# claude-sandbox - Run Claude Code in an isolated Docker environment
+#
+# Usage:
+#   claude-sandbox local "work on task 123"    # Run locally with Docker Compose
+#   claude-sandbox remote "work on task 123"   # Run on k8s cluster
+#   claude-sandbox build                       # Build the Docker image
+#   claude-sandbox push                        # Push image to registry
+#
+# Required environment variables:
+#   GITHUB_TOKEN              - GitHub token for cloning
+#   CLAUDE_CODE_OAUTH_TOKEN   - OAuth token from `claude setup-token` (valid 1 year)
+#                               OR use ANTHROPIC_API_KEY instead
+#   REPO_URL                  - Repository URL to clone
+#
+# Optional environment variables:
+#   ANTHROPIC_API_KEY   - Alternative to OAuth token (pay-as-you-go API)
+#   TELEGRAM_BOT_TOKEN  - Telegram bot token for notifications
+#   TELEGRAM_CHAT_ID    - Telegram chat ID for notifications
+#   REPO_BRANCH         - Branch to start from (default: main)
+#   CLAUDE_IMAGE        - Docker image for k8s (default: claude-sandbox:latest)
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+SANDBOX_DIR="$PROJECT_DIR/docker/claude-sandbox"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log() { echo -e "${GREEN}[claude-sandbox]${NC} $1"; }
+warn() { echo -e "${YELLOW}[claude-sandbox]${NC} $1"; }
+error() { echo -e "${RED}[claude-sandbox]${NC} $1" >&2; }
+
+usage() {
+  cat <<EOF
+Usage: claude-sandbox <command> [options]
+
+Commands:
+  local <task>     Run Claude locally with Docker Compose
+  remote <task>    Run Claude on k8s cluster
+  build            Build the Docker image
+  push             Push image to registry
+  logs             Follow logs of running k8s job
+  clean            Clean up completed k8s jobs
+
+Examples:
+  claude-sandbox local "fix the login bug"
+  claude-sandbox remote "implement feature X"
+  claude-sandbox build
+
+Environment variables:
+  GITHUB_TOKEN, REPO_URL (required)
+  CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY (one required)
+  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (optional, for notifications)
+  REPO_BRANCH (optional, default: main)
+  CLAUDE_IMAGE (optional, for remote)
+
+To get OAuth token (uses your Claude subscription):
+  claude setup-token
+EOF
+}
+
+check_env() {
+  local missing=0
+
+  # Required vars
+  for var in GITHUB_TOKEN REPO_URL; do
+    if [ -z "${!var}" ]; then
+      error "Missing required environment variable: $var"
+      missing=1
+    fi
+  done
+
+  # Need either OAuth token or API key
+  if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+    error "Either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is required"
+    error "Get OAuth token with: claude setup-token"
+    missing=1
+  fi
+
+  if [ $missing -eq 1 ]; then
+    exit 1
+  fi
+
+  # Warn about optional vars
+  if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+    warn "Telegram not configured - notifications disabled"
+  fi
+}
+
+cmd_local() {
+  local task="$*"
+  if [ -z "$task" ]; then
+    error "Task is required"
+    usage
+    exit 1
+  fi
+
+  check_env
+
+  log "Starting local sandbox..."
+  log "Task: $task"
+
+  cd "$SANDBOX_DIR"
+
+  # Check if image exists
+  if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^claude-sandbox:latest$"; then
+    error "Image not found. Run 'bin/claude-sandbox build' first."
+    exit 1
+  fi
+
+  # Run with task
+  docker compose run --rm \
+    -e TASK="$task" \
+    -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+    -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
+    -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
+    -e REPO_URL="$REPO_URL" \
+    -e REPO_BRANCH="${REPO_BRANCH:-main}" \
+    -e TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}" \
+    -e TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}" \
+    claude
+}
+
+cmd_remote() {
+  local task="$*"
+  if [ -z "$task" ]; then
+    error "Task is required"
+    usage
+    exit 1
+  fi
+
+  check_env
+
+  # Check kubectl is available
+  if ! command -v kubectl &> /dev/null; then
+    error "kubectl not found - required for remote execution"
+    exit 1
+  fi
+
+  # Check cluster connection
+  if ! kubectl cluster-info &> /dev/null; then
+    error "Cannot connect to k8s cluster"
+    exit 1
+  fi
+
+  # Generate unique job name
+  local job_name="claude-sandbox-$(date +%Y%m%d-%H%M%S)"
+
+  log "Creating k8s job: $job_name"
+  log "Task: $task"
+
+  # Export for envsubst
+  export TASK="$task"
+  export JOB_NAME="$job_name"
+  export CLAUDE_IMAGE="${CLAUDE_IMAGE:-claude-sandbox:latest}"
+
+  # Apply job
+  envsubst < "$SANDBOX_DIR/k8s/job-template.yaml" | kubectl apply -f -
+
+  log "Job created successfully"
+  log "Watch logs with: kubectl logs -f job/$job_name"
+  log "Or run: claude-sandbox logs"
+}
+
+cmd_build() {
+  log "Building Docker image..."
+  cd "$SANDBOX_DIR"
+
+  # Copy Claude config (agents, settings) to build context
+  local claude_config="$SANDBOX_DIR/claude-config"
+  rm -rf "$claude_config"
+  mkdir -p "$claude_config"
+
+  # Copy agents if they exist
+  if [ -d "$HOME/.claude/agents" ]; then
+    log "Copying agents from ~/.claude/agents/"
+    cp -r "$HOME/.claude/agents" "$claude_config/"
+  else
+    warn "No agents found at ~/.claude/agents/"
+    mkdir -p "$claude_config/agents"
+  fi
+
+  # Copy artifacts if they exist
+  if [ -d "$HOME/.claude/artifacts" ]; then
+    log "Copying artifacts from ~/.claude/artifacts/"
+    cp -r "$HOME/.claude/artifacts" "$claude_config/"
+  fi
+
+  # Create a minimal settings.json for the sandbox
+  # (don't copy host settings - they may have paths that don't work in container)
+  cat > "$claude_config/settings.json" << 'EOF'
+{
+  "permissions": {
+    "allow": [],
+    "deny": []
+  }
+}
+EOF
+
+  log "Building image..."
+  docker build -t claude-sandbox:latest .
+
+  # Clean up copied config but keep .gitkeep so docker compose doesn't fail
+  find "$claude_config" -type f ! -name '.gitkeep' -delete
+  find "$claude_config" -mindepth 1 -type d -delete 2>/dev/null || true
+
+  log "Build complete"
+}
+
+cmd_push() {
+  local registry="${CLAUDE_REGISTRY:-}"
+  if [ -z "$registry" ]; then
+    error "CLAUDE_REGISTRY environment variable required"
+    error "Example: export CLAUDE_REGISTRY=ghcr.io/username"
+    exit 1
+  fi
+
+  local image="$registry/claude-sandbox:latest"
+  log "Pushing to $image..."
+
+  docker tag claude-sandbox:latest "$image"
+  docker push "$image"
+
+  log "Push complete"
+  log "Update CLAUDE_IMAGE=$image for remote runs"
+}
+
+cmd_logs() {
+  # Find most recent job
+  local job=$(kubectl get jobs -l app=claude-sandbox \
+    --sort-by=.metadata.creationTimestamp \
+    -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null)
+
+  if [ -z "$job" ]; then
+    error "No claude-sandbox jobs found"
+    exit 1
+  fi
+
+  log "Following logs for job: $job"
+  kubectl logs -f "job/$job" -c claude
+}
+
+cmd_clean() {
+  log "Cleaning up completed jobs..."
+  kubectl delete jobs -l app=claude-sandbox,managed-by=claude-sandbox-cli \
+    --field-selector status.successful=1 2>/dev/null || true
+  kubectl delete jobs -l app=claude-sandbox,managed-by=claude-sandbox-cli \
+    --field-selector status.failed=1 2>/dev/null || true
+  log "Cleanup complete"
+}
+
+# Main
+case "${1:-}" in
+  local)
+    shift
+    cmd_local "$@"
+    ;;
+  remote)
+    shift
+    cmd_remote "$@"
+    ;;
+  build)
+    cmd_build
+    ;;
+  push)
+    cmd_push
+    ;;
+  logs)
+    cmd_logs
+    ;;
+  clean)
+    cmd_clean
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    error "Unknown command: $1"
+    usage
+    exit 1
+    ;;
+esac
