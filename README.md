@@ -10,6 +10,8 @@ When using AI for development, you face a tension:
 
 This workflow adds structure where it helps while trusting AI agents to think, adapt, and improve.
 
+**See [Design Rationale](artifacts/workflow-design/WORKFLOW-DESIGN-RATIONALE.md) for the full reasoning behind these decisions.**
+
 ## How It Works
 
 ```
