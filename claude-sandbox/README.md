@@ -57,6 +57,46 @@ bin/claude-sandbox remote "implement user profile page"
 bin/claude-sandbox logs
 ```
 
+## Global Installation
+
+To use claude-sandbox from any directory:
+
+### Option 1: Add to PATH
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+export PATH="$HOME/.claude/claude-sandbox/bin:$PATH"
+```
+
+### Option 2: Symlink to Local Bin
+
+```bash
+ln -s ~/.claude/claude-sandbox/bin/claude-sandbox ~/.local/bin/claude-sandbox
+# Ensure ~/.local/bin is in PATH
+```
+
+### Auto-Detection
+
+When called from within a git repository, claude-sandbox will automatically detect:
+- REPO_URL: From git remote get-url origin
+- REPO_BRANCH: From git branch --show-current
+
+These can still be overridden with environment variables.
+
+Example:
+```bash
+cd ~/projects/my-app
+# No need to set REPO_URL or REPO_BRANCH
+claude-sandbox local "fix the login bug"
+```
+
+Override auto-detection:
+```bash
+REPO_URL="https://github.com/other/repo.git" \
+REPO_BRANCH="develop" \
+claude-sandbox local "work on feature X"
+```
+
 ## Environment Variables
 
 ### Required
@@ -65,14 +105,15 @@ bin/claude-sandbox logs
 |----------|-------------|
 | `GITHUB_TOKEN` | GitHub personal access token with `repo` scope |
 | `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token from `claude setup-token` (valid 1 year, uses your Claude subscription) |
-| `REPO_URL` | Repository URL (e.g., `https://github.com/you/repo.git`) |
+| `REPO_URL` | Repository URL (auto-detected from `git remote get-url origin`) |
 
 ### Optional
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ANTHROPIC_API_KEY` | - | Alternative to OAuth token (pay-as-you-go API) |
-| `REPO_BRANCH` | `main` | Branch to clone and start from |
+| `REPO_BRANCH` | Auto-detected or `main` | Branch to clone (auto-detected from `git branch --show-current`) |
+| `DATABASE_NAME` | `sandbox_development` | PostgreSQL database name |
 | `TELEGRAM_BOT_TOKEN` | - | Telegram bot token for notifications |
 | `TELEGRAM_CHAT_ID` | - | Telegram chat ID to receive notifications |
 | `CLAUDE_IMAGE` | `claude-sandbox:latest` | Docker image for remote runs |
