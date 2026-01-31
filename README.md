@@ -1,6 +1,6 @@
 # AI Development Workflow
 
-A structured workflow for AI-assisted development that ensures due process (specify → plan → implement → review) while not over-processing simple tasks.
+A structured workflow for AI-assisted development that ensures due process (specify → plan → implement → review) while not over-processing simple tasks. Includes optional isolated sandbox environments for autonomous execution.
 
 ## The Problem
 
@@ -79,6 +79,38 @@ epic-456 (converted from task)
 /bd-task <task description>
 ```
 
+## Sandbox Execution
+
+For autonomous, unsupervised execution, use the included **claude-sandbox** environment:
+
+**What it provides:**
+- Isolated Docker/Kubernetes execution environment
+- Fresh git clone per run (doesn't touch your local checkout)
+- Full stack: PostgreSQL, Redis, Chrome for system tests
+- Protected branches (prevents force-push to main/master/production)
+- Telegram notifications when tasks complete or fail
+- Encrypted secrets management (SOPS) for project-specific config
+- Auto-detection of repository and branch from current directory
+
+**Use cases:**
+- Run Claude autonomously while you sleep or work on other things
+- Execute tasks on remote k8s cluster with same environment
+- Safely test changes in isolation before applying locally
+- Run multiple tasks in parallel on different projects
+
+**Quick start:**
+```bash
+# Local execution
+cd ~/your-project
+~/.claude/claude-sandbox/bin/claude-sandbox local "run database migrations"
+
+# Remote execution (k8s)
+cd ~/your-project
+~/.claude/claude-sandbox/bin/claude-sandbox remote "implement feature X"
+```
+
+**See [claude-sandbox/README.md](claude-sandbox/README.md) for complete setup and usage guide.**
+
 ## Design Philosophy
 
 **Optimizes for:**
@@ -152,6 +184,11 @@ curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/instal
 ├── commands/
 │   ├── develop.md     # Full workflow command
 │   └── bd-task.md     # Quick capture command
+├── claude-sandbox/    # Isolated execution environment
+│   ├── README.md      # Sandbox documentation
+│   ├── Dockerfile     # Container image
+│   ├── bin/           # CLI tools
+│   └── k8s/           # Kubernetes templates
 └── artifacts/
     └── workflow-design/
         └── WORKFLOW-DESIGN-RATIONALE.md
