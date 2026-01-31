@@ -185,6 +185,9 @@ When an agent marks a subtask as blocked:
 
 Wait for user input before proceeding.
 
+## Phase 6: Ensure work is commited and pushed
+Ensure that any work done by yourself or others is properly commited and pushed to repository.
+
 ## Artifact Awareness
 
 Before starting work, check for project artifacts:
