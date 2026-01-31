@@ -12,7 +12,7 @@ services:
     environment:
       POSTGRES_USER: claude
       POSTGRES_PASSWORD: claude
-      POSTGRES_DB: hriste_development
+      POSTGRES_DB: ${DATABASE_NAME:-sandbox_development}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -38,7 +38,7 @@ services:
         condition: service_healthy
     environment:
       # Database
-      DATABASE_URL: postgis://claude:claude@postgres:5432/hriste_development
+      DATABASE_URL: postgis://claude:claude@postgres:5432/${DATABASE_NAME:-sandbox_development}
       REDIS_URL: redis://redis:6379
       # Secrets (provide via env or .env file)
       GITHUB_TOKEN: ${GITHUB_TOKEN}
