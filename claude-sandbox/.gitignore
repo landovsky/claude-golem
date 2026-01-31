@@ -1,3 +1,7 @@
 # Temporary build artifacts (except .gitkeep)
 claude-config/*
 !claude-config/.gitkeep
+
+# Local environment overrides
+.env
+.env.local
