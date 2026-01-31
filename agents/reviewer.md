@@ -355,6 +355,7 @@ bd close [task-id]
 
 - Fixed critical and major issues (committed)
 - Review notes written as bd comment on own task
+- Tracking data emitted as bd comment to `.claude-metrics` task
 - Lessons appended to `artifacts/lessons-learned.md`
 - Completed bd issue
 
