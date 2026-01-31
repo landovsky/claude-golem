@@ -24,7 +24,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ${JOB_NAME:-claude-sandbox}
+  name: ${JOB_NAME}
   labels:
     app: claude-sandbox
     managed-by: claude-sandbox-cli
@@ -51,7 +51,7 @@ spec:
 
       containers:
       - name: claude
-        image: ${CLAUDE_IMAGE:-landovsky/claude-sandbox:latest}
+        image: ${CLAUDE_IMAGE}
         env:
         - name: TASK
           value: "${TASK}"

@@ -60,6 +60,9 @@ fi
 
 cd /workspace
 
+# Fix git ownership issues in container
+git config --global --add safe.directory /workspace
+
 section "Repository Setup"
 # Clone fresh or update existing
 # QUICK FIX: When using workspace volume (local testing), this reuses existing workspace
