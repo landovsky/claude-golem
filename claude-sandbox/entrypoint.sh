@@ -181,6 +181,10 @@ if [ "$HAS_RAILS" = true ]; then
   separator
 fi
 
+# Configure Claude to skip onboarding (required for OAuth token to work)
+mkdir -p /home/claude/.claude
+echo '{"hasCompletedOnboarding": true}' > /home/claude/.claude.json
+
 cd /workspace
 
 section "Beads setup..."
@@ -195,13 +199,10 @@ EOF
 bd --import-only --rename-on-import sync
 success "Beads initialized"
 
+# Prime Claude
 bd setup claude
-success "Claude primed with beads instructions"
+success "Claude setup complete"
 separator
-
-# Configure Claude to skip onboarding (required for OAuth token to work)
-mkdir -p /home/claude/.claude
-echo '{"hasCompletedOnboarding": true}' > /home/claude/.claude.json
 
 section "Claude Code Session"
 info "Task: $TASK"
