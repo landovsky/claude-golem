@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -o pipefail  # Ensure exit code propagates through pipes (for auth error detection)
 
 # Colors for output
 RED='\033[0;31m'
