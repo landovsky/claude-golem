@@ -10,6 +10,7 @@ When you want Claude to work on tasks without supervision:
 - **Notifications**: Get Telegram alerts when Claude finishes or gets stuck
 - **Reproducibility**: Same environment locally and remotely
 - **Full stack**: PostgreSQL, Redis, Chrome (for system tests) included
+- **SOPS Integration**: Encrypted secrets in your repo, no manual k8s secret management
 
 ## Quick Start
 
@@ -166,6 +167,7 @@ The sandbox container includes:
 - Google Chrome (for Capybara system tests)
 - beads (`bd`) for task tracking
 - Claude Code CLI
+- SOPS + age for encrypted secrets management
 
 ## Safety Features
 
@@ -188,6 +190,45 @@ When configured, you'll receive a message when:
 - Claude completes the task (exit code 0)
 - Claude fails (non-zero exit code)
 - The session is interrupted (Ctrl+C or timeout)
+
+### SOPS Encrypted Secrets
+
+Project-specific environment variables can be managed with SOPS:
+
+**Benefits:**
+- Secrets live in your repo (encrypted, safe to commit)
+- Version-controlled with your code
+- No manual k8s secret management per project
+- Works locally and in k8s
+
+**Quick setup:**
+
+```bash
+# 1. Generate age key (one-time)
+age-keygen -o age-key.txt
+
+# 2. Store in k8s
+kubectl create secret generic age-key --from-file=age-key.txt
+
+# 3. In your project, create .sops.yaml
+cat > .sops.yaml << EOF
+creation_rules:
+  - age: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p  # Your public key
+EOF
+
+# 4. Create encrypted secrets
+sops .env.sops
+# Add: DATABASE_NAME=myapp_dev
+# Save (auto-encrypts)
+
+# 5. Commit and use
+git add .sops.yaml .env.sops
+git commit -m "Add encrypted config"
+```
+
+When the job runs, `.env.sops` is automatically decrypted and loaded.
+
+**See [docs/SOPS-SETUP.md](docs/SOPS-SETUP.md) for complete guide.**
 
 ## Directory Structure
 

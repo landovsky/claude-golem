@@ -97,6 +97,26 @@ info "Branch: $(git branch --show-current)"
 info "Commit: $(git rev-parse --short HEAD)"
 separator
 
+section "Secrets Management"
+# Load encrypted secrets from .env.sops if present
+if [ -f .env.sops ]; then
+  if [ -f /secrets/age-key.txt ]; then
+    action "Decrypting .env.sops with age key..."
+    export SOPS_AGE_KEY_FILE=/secrets/age-key.txt
+
+    # Decrypt and export environment variables
+    eval "$(sops -d --output-type dotenv .env.sops | sed 's/^/export /')"
+
+    success "Environment variables loaded from .env.sops"
+  else
+    warn ".env.sops found but age key not available at /secrets/age-key.txt"
+    warn "Skipping SOPS decryption"
+  fi
+else
+  info "No .env.sops file found, using environment variables from secrets"
+fi
+separator
+
 section "Project Detection"
 
 # Detect Ruby/Rails project

@@ -48,6 +48,10 @@ spec:
           sizeLimit: 2Gi
       - name: workspace
         emptyDir: {}
+      - name: age-key
+        secret:
+          secretName: age-key
+          optional: true
 
       containers:
       - name: claude
@@ -76,6 +80,9 @@ spec:
         - name: workspace
           mountPath: /workspace
           subPath: code
+        - name: age-key
+          mountPath: /secrets
+          readOnly: true
         resources:
           requests:
             memory: "2Gi"

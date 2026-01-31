@@ -1,0 +1,19 @@
+# .sops.yaml - SOPS configuration
+#
+# Place this in your project root and commit to git.
+# Replace the age public key with your own (generated with: age-keygen)
+#
+# Generate key: age-keygen -o age-key.txt
+# Output shows: Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+
+creation_rules:
+  # Default rule: encrypt all .env.sops files with this age key
+  - path_regex: \.env\.sops$
+    age: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+
+  # Optional: Different keys for different environments
+  # - path_regex: \.env\.production\.sops$
+  #   age: age1productionkeyhere...
+  #
+  # - path_regex: \.env\.staging\.sops$
+  #   age: age1stagingkeyhere...

@@ -3,6 +3,11 @@
 
 FROM ubuntu:24.04
 
+# Build arguments for version control
+ARG RUBY_VERSION=3.4.7
+ARG SOPS_VERSION=3.9.2
+ARG AGE_VERSION=1.2.0
+
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -50,7 +55,6 @@ RUN apt-get update \
     && ln -sf /usr/bin/chromium-browser /usr/bin/google-chrome
 
 # Install Ruby via ruby-install (dependencies already installed above)
-ARG RUBY_VERSION=3.4.7
 RUN wget -O ruby-install.tar.gz https://github.com/postmodern/ruby-install/releases/download/v0.9.3/ruby-install-0.9.3.tar.gz \
     && tar -xzf ruby-install.tar.gz \
     && cd ruby-install-0.9.3 \
@@ -63,6 +67,14 @@ RUN wget -O ruby-install.tar.gz https://github.com/postmodern/ruby-install/relea
 
 # Install beads (bd) and Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code @beads/bd
+
+# Install SOPS and age for encrypted secrets management
+RUN wget https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64 \
+    -O /usr/local/bin/sops && chmod +x /usr/local/bin/sops \
+    && wget https://github.com/FiloSottile/age/releases/download/v${AGE_VERSION}/age-v${AGE_VERSION}-linux-amd64.tar.gz \
+    && tar -xzf age-v${AGE_VERSION}-linux-amd64.tar.gz -C /tmp \
+    && mv /tmp/age/age /tmp/age/age-keygen /usr/local/bin/ \
+    && rm -rf /tmp/age age-v${AGE_VERSION}-linux-amd64.tar.gz
 
 # Create non-root user
 RUN useradd -m -s /bin/bash claude \
