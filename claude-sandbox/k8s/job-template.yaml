@@ -49,30 +49,6 @@ spec:
       - name: workspace
         emptyDir: {}
 
-      initContainers:
-      # Start Postgres
-      - name: postgres
-        image: postgres:16-alpine
-        env:
-        - name: POSTGRES_USER
-          value: claude
-        - name: POSTGRES_PASSWORD
-          value: claude
-        - name: POSTGRES_DB
-          value: hriste_development
-        - name: PGDATA
-          value: /var/lib/postgresql/data/pgdata
-        volumeMounts:
-        - name: workspace
-          mountPath: /var/lib/postgresql/data
-          subPath: postgres
-        command: ["/bin/sh", "-c"]
-        args:
-        - |
-          docker-entrypoint.sh postgres &
-          until pg_isready -U claude; do sleep 1; done
-          echo "Postgres ready"
-
       containers:
       - name: claude
         image: ${CLAUDE_IMAGE:-your-registry/claude-sandbox:latest}
