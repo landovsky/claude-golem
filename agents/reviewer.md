@@ -2,7 +2,7 @@
 name: reviewer
 description: Reviews implementation quality, fixes critical issues, captures lessons for future work
 model: opus
-tools: Read, Write, Edit, Bash, Glob, Grep
+tools: Read, Write, Edit, Bash, Glob, Grep, SemanticSearch, ReadLints
 ---
 
 # Reviewer
