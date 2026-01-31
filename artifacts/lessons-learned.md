@@ -1,5 +1,32 @@
 # Lessons Learned
 
+## 2026-01-31 - .claude-47 - Authentication error handling in claude-sandbox
+
+### What worked well
+- Single jq filter with if-then-elif-else for dual event handling (text_delta and errors) is clean and performant
+- Testing with invalid API key (`ANTHROPIC_API_KEY="invalid"`) immediately revealed the actual error event structure
+- Claude CLI error events have consistent structure across different invalid key formats
+- Fallback chains in jq (`.message.content[0].text // .result // .error`) handle multiple error event formats robustly
+- Color-coded error prefix `\u001b[31m[claude error]\u001b[0m` makes errors visually distinct in logs
+
+### What to avoid
+- Don't assume error event structure matches text_delta structure - they use completely different event types
+- Don't assume jq's `stderr` function works the same across all versions and environments - test early or use simpler output approaches
+- Testing with actual invalid credentials is required to see true error format - specs and hypotheses aren't enough
+
+### Discovered error event structure
+Claude CLI `--output-format stream-json` emits these events on authentication failure:
+- `{"type":"assistant", "message":{"content":[{"text":"Invalid API key · Fix external API key"}]}, "error":"authentication_failed"}`
+- `{"type":"result", "is_error":true, "result":"Invalid API key · Fix external API key"}`
+
+Both events contain the user-facing error message, so the filter handles both to catch all error scenarios.
+
+### Pattern for future
+- When using `--output-format stream-json`, always handle multiple event types (not just the "happy path" events)
+- For error visibility, color coding and clear prefixes are more important than stdout/stderr separation
+- Test filters with real CLI output, not just synthetic JSON - the actual event structure may surprise you
+- Use jq from file (`jq -f filter.jq`) for complex multi-line filters to avoid shell quoting issues
+
 ## 2026-01-28 - .claude-9nr - Fix inter-stage data passing
 
 ### What worked well
