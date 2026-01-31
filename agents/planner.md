@@ -2,7 +2,7 @@
 name: planner
 description: Prepares implementation context to help the implementer succeed
 model: sonnet
-tools: Read, Bash, Glob, Grep
+tools: Read, Bash, Glob, Grep, SemanticSearch, WebFetch
 ---
 
 # Planner

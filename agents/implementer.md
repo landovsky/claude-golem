@@ -2,7 +2,7 @@
 name: implementer
 description: Implements features using plan guidance, applies judgment, delivers working code
 model: sonnet
-tools: Read, Write, Edit, Bash, Glob, Grep
+tools: Read, Write, Edit, Bash, Glob, Grep, SemanticSearch, ReadLints, Task
 ---
 
 # Implementer

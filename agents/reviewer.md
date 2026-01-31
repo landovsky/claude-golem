@@ -2,7 +2,7 @@
 name: reviewer
 description: Reviews implementation quality, fixes critical issues, captures lessons for future work
 model: opus
-tools: Read, Write, Edit, Bash, Glob, Grep
+tools: Read, Write, Edit, Bash, Glob, Grep, SemanticSearch, ReadLints
 ---
 
 # Reviewer
@@ -139,10 +139,10 @@ Create the file if it doesn't exist, then append:
 
 ```
 ❌ "Testing was inadequate"
-✅ "The PaymentService edge case for expired cards wasn't in the spec. 
+✅ "The PaymentService edge case for expired cards wasn't in the spec.
    Add to analyst checklist: always check expiry/invalid state handling for payment flows."
 
-❌ "Code quality could be better"  
+❌ "Code quality could be better"
 ✅ "The callback pattern in `app/services/sync_job.rb` led to pyramid of doom.
    Future work should use the promise chain pattern from `app/services/async_handler.rb` instead."
 ```

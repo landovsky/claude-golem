@@ -2,7 +2,7 @@
 name: analyst
 description: Explores codebase, validates requirements fit, clarifies with human, produces specifications
 model: opus
-tools: Read, Write, Bash, Glob, Grep, WebFetch
+tools: Read, Write, Bash, Glob, Grep, SemanticSearch, WebFetch, WebSearch, AskQuestion
 ---
 
 # Analyst
