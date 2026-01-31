@@ -113,6 +113,196 @@ EOF
 )"
 ```
 
+## Phase 5.5: Emit Tracking Data
+
+**Purpose:** Emit structured tracking data for metrics aggregation. This creates a historical record of issue severity and category distribution across all reviews.
+
+**When:** After every review, even if zero issues were found.
+
+**Where:** Data is written as a bd comment to the dedicated `.claude-metrics` task (must exist - see setup below).
+
+### Setup Requirement
+
+The `.claude-metrics` task must exist before your first review. If it doesn't exist, the bd command will fail with a clear error. This is a one-time manual setup, out of scope for automation.
+
+### Counting During Triage
+
+As you triage issues in Phase 3, mentally track:
+- Count of issues per severity (Critical/Major/Minor)
+- Count of issues per category (see taxonomy below)
+
+You'll need these counts for the JSON payload.
+
+### Category Taxonomy
+
+Use these base categories (snake_case keys):
+
+| Category | Definition |
+|----------|------------|
+| `testing` | Missing/inadequate tests |
+| `ui_ux` | Frontend/interface issues |
+| `business_logic` | Incorrect behavior |
+| `security` | Vulnerabilities |
+| `performance` | Efficiency issues |
+| `code_quality` | Structure, naming, patterns |
+| `documentation` | Missing/incorrect docs |
+| `hints` | Missing hints/guidance |
+| `configuration` | Config issues |
+
+**Adding new categories:** If an issue doesn't fit existing categories, add a new snake_case key (e.g., `error_handling`, `data_migration`). Document in the issue summary why the new category was needed.
+
+### JSON Schema
+
+Each review emits one JSON payload with this structure:
+
+```json
+{
+  "v": 1,
+  "ts": "2026-01-31T14:30:00Z",
+  "task": ".claude-abc.4",
+  "parent": ".claude-abc",
+  "severity": {
+    "critical": 0,
+    "major": 2,
+    "minor": 3
+  },
+  "categories": {
+    "testing": 1,
+    "business_logic": 2,
+    "code_quality": 2
+  },
+  "issues": [
+    {
+      "severity": "major",
+      "category": "testing",
+      "file": "src/auth.ts",
+      "line": 42,
+      "summary": "Missing error case test"
+    }
+  ]
+}
+```
+
+**Field definitions:**
+- `v`: Schema version (integer, always 1 for now)
+- `ts`: ISO 8601 timestamp when review completed (UTC)
+- `task`: Your reviewer subtask ID (e.g., `.claude-abc.4`)
+- `parent`: The parent task being reviewed
+- `severity`: Counts per severity level (all three keys always present, even if 0)
+- `categories`: Counts per category (only include categories with count > 0)
+- `issues`: Array of individual issues (can be empty for zero-issue reviews)
+
+### Command Template
+
+Generate the timestamp first, then emit the payload:
+
+```bash
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+bd comments add .claude-metrics "$(cat <<EOF
+{
+  "v": 1,
+  "ts": "$TIMESTAMP",
+  "task": "[task-id]",
+  "parent": "[parent-task-id]",
+  "severity": {
+    "critical": [count],
+    "major": [count],
+    "minor": [count]
+  },
+  "categories": {
+    "[category]": [count]
+  },
+  "issues": [
+    {
+      "severity": "[critical|major|minor]",
+      "category": "[category-key]",
+      "file": "[path/to/file]",
+      "line": [line-number],
+      "summary": "[brief description]"
+    }
+  ]
+}
+EOF
+)"
+```
+
+**Important:** Generate the timestamp in a variable first, then use double-quoted HEREDOC (`<<EOF`) to allow `$TIMESTAMP` substitution. Replace `[task-id]`, `[parent-task-id]`, counts, and issue details with actual values from your review.
+
+### Examples
+
+**Zero-issue review:**
+```json
+{
+  "v": 1,
+  "ts": "2026-01-31T14:30:00Z",
+  "task": ".claude-abc.4",
+  "parent": ".claude-abc",
+  "severity": {
+    "critical": 0,
+    "major": 0,
+    "minor": 0
+  },
+  "categories": {},
+  "issues": []
+}
+```
+
+**Multi-issue review:**
+```json
+{
+  "v": 1,
+  "ts": "2026-01-31T14:35:00Z",
+  "task": ".claude-def.4",
+  "parent": ".claude-def",
+  "severity": {
+    "critical": 1,
+    "major": 1,
+    "minor": 2
+  },
+  "categories": {
+    "security": 1,
+    "testing": 1,
+    "code_quality": 2
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "file": "src/auth.ts",
+      "line": 23,
+      "summary": "SQL injection vulnerability in user query"
+    },
+    {
+      "severity": "major",
+      "category": "testing",
+      "file": "src/payment.ts",
+      "line": 56,
+      "summary": "Missing test for refund edge case"
+    },
+    {
+      "severity": "minor",
+      "category": "code_quality",
+      "file": "src/utils.ts",
+      "line": 12,
+      "summary": "Magic number should be named constant"
+    },
+    {
+      "severity": "minor",
+      "category": "code_quality",
+      "file": "src/parser.ts",
+      "line": 78,
+      "summary": "Complex nested ternary, extract to function"
+    }
+  ]
+}
+```
+
+### Notes
+
+- This writes to `.claude-metrics`, separate from your Phase 5 review notes (which write to `[task-id]`)
+- Multiple reviewers can write concurrently - bd comments are append-only, no conflicts
+- If bd rejects the payload due to size limits, future optimization could truncate the issues array while preserving severity/category counts
+
 ## Phase 6: Capture Lessons Learned
 
 **Purpose:** The planner checks `artifacts/lessons-learned.md` before every plan. Your learnings directly improve future work.
