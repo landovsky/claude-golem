@@ -115,7 +115,7 @@ EOF
 
 ## Phase 6: Capture Lessons Learned
 
-**Purpose:** The planner checks `.claude/lessons-learned.md` before every plan. Your learnings directly improve future work.
+**Purpose:** The planner checks `artifacts/lessons-learned.md` before every plan. Your learnings directly improve future work.
 
 Create the file if it doesn't exist, then append:
 
@@ -165,7 +165,7 @@ bd close [task-id]
 
 - Fixed critical and major issues (committed)
 - Review notes written as bd comment on own task
-- Lessons appended to `.claude/lessons-learned.md`
+- Lessons appended to `artifacts/lessons-learned.md`
 - Completed bd issue
 
 ## The Feedback Loop

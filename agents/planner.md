@@ -36,7 +36,7 @@ You fill these gaps.
 2. **Read the context** - look for `.claude/analysis/[task-id]-context.md`. If it doesn't exist, skip this step — you'll gather context yourself in step 5.
 3. **Check lessons-learned** - don't repeat past mistakes:
    ```bash
-   cat .claude/lessons-learned.md 2>/dev/null
+   cat artifacts/lessons-learned.md 2>/dev/null
    ```
 4. **Check project conventions** - CLAUDE.md or similar
 5. **Explore related code** - find patterns, dependencies, risks

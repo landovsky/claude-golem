@@ -3,5 +3,10 @@
     "filename": "workflow-design/WORKFLOW.md",
     "description": "End-to-end development workflow documentation",
     "usage": "always"
+  },
+  {
+    "filename": "lessons-learned.md",
+    "description": "Accumulated learnings from past work to avoid repeated mistakes",
+    "usage": "always"
   }
 ]

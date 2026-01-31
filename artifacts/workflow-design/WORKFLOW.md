@@ -90,7 +90,7 @@ If a business process changes, the artifact documenting it must change too. This
 ## The Learning Loop
 
 ```
-.claude/lessons-learned.md
+artifacts/lessons-learned.md
          ↑
     Reviewer writes
          │
@@ -168,6 +168,7 @@ Agents may optionally write files as backup. If file writes fail, that's OK - bd
     [issue-id]-spec.md      # Optional: Analyst's specification
   plans/
     [issue-id]-plan.md      # Optional: Planner's implementation context
+artifacts/
   lessons-learned.md        # Required: Reviewer's accumulated learnings (read by planner)
 ```
 

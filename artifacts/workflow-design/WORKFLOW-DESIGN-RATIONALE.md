@@ -99,7 +99,7 @@ Convert original task to epic rather than creating shadow entity alongside.
 **Lessons-learned feedback:**
 > "Points to a file that no-one reads"
 
-Clarified: lives at `.claude/lessons-learned.md`, planner explicitly reads it. Closed loop.
+Clarified: lives at `artifacts/lessons-learned.md`, planner explicitly reads it. Closed loop.
 
 **Documenter question:**
 > "Do we need this role?"
