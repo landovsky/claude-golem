@@ -51,7 +51,7 @@ spec:
 
       containers:
       - name: claude
-        image: ${CLAUDE_IMAGE:-your-registry/claude-sandbox:latest}
+        image: ${CLAUDE_IMAGE:-landovsky/claude-sandbox:latest}
         env:
         - name: TASK
           value: "${TASK}"

@@ -116,7 +116,7 @@ claude-sandbox local "work on feature X"
 | `DATABASE_NAME` | `sandbox_development` | PostgreSQL database name |
 | `TELEGRAM_BOT_TOKEN` | - | Telegram bot token for notifications |
 | `TELEGRAM_CHAT_ID` | - | Telegram chat ID to receive notifications |
-| `CLAUDE_IMAGE` | `claude-sandbox:latest` | Docker image for remote runs |
+| `CLAUDE_IMAGE` | `landovsky/claude-sandbox:latest` | Docker image for remote runs |
 | `CLAUDE_REGISTRY` | - | Registry for pushing images |
 
 ### Getting OAuth Token

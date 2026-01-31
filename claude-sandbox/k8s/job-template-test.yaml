@@ -1,0 +1,123 @@
+# Claude Sandbox - Kubernetes Job Template (TEST - No Services)
+#
+# Simplified version for testing basic job execution without Postgres/Redis
+#
+# This template is used by `bin/claude-sandbox remote` to create jobs.
+# Variables like ${TASK} are substituted by envsubst before applying.
+#
+# Prerequisites:
+#   1. Create the secrets:
+#      kubectl create secret generic claude-sandbox-secrets \
+#        --from-literal=GITHUB_TOKEN=xxx \
+#        --from-literal=CLAUDE_CODE_OAUTH_TOKEN=xxx \
+#        --from-literal=REPO_URL=https://github.com/you/repo.git
+#
+#   2. Build and push the image:
+#      cd ~/.claude/claude-sandbox
+#      bin/claude-sandbox build
+#      docker tag claude-sandbox:latest your-registry/claude-sandbox:latest
+#      docker push your-registry/claude-sandbox:latest
+#
+# Usage:
+#   export TASK="list files in the repository"
+#   export JOB_NAME="claude-test-$(date +%s)"
+#   export CLAUDE_IMAGE="your-registry/claude-sandbox:latest"
+#   envsubst < k8s/job-template-test.yaml | kubectl apply -f -
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${JOB_NAME:-claude-sandbox-test}
+  labels:
+    app: claude-sandbox
+    managed-by: claude-sandbox-cli
+    test: "true"
+spec:
+  # Auto-cleanup after 1 hour
+  ttlSecondsAfterFinished: 3600
+  # Don't retry on failure
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: claude-sandbox
+        test: "true"
+    spec:
+      restartPolicy: Never
+
+      # Shared memory for Chrome
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 2Gi
+      - name: workspace
+        emptyDir: {}
+
+      containers:
+      - name: claude
+        image: ${CLAUDE_IMAGE:-landovsky/claude-sandbox:latest}
+        env:
+        - name: TASK
+          value: "${TASK}"
+        # Remove DATABASE_URL and REDIS_URL for testing without services
+        # - name: DATABASE_URL
+        #   value: "postgres://claude:claude@localhost:5432/hriste_development"
+        # - name: REDIS_URL
+        #   value: "redis://localhost:6379"
+        - name: RAILS_ENV
+          value: "development"
+        - name: CHROME_BIN
+          value: "/usr/bin/chromium-browser"
+        envFrom:
+        - secretRef:
+            name: claude-sandbox-secrets
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+        - name: workspace
+          mountPath: /workspace
+          subPath: code
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+
+      # SIDECARS COMMENTED OUT FOR TESTING
+      # Uncomment when ready to test with services
+
+      # # Sidecar: Postgres
+      # - name: postgres-sidecar
+      #   image: postgres:16-alpine
+      #   env:
+      #   - name: POSTGRES_USER
+      #     value: claude
+      #   - name: POSTGRES_PASSWORD
+      #     value: claude
+      #   - name: POSTGRES_DB
+      #     value: ${DATABASE_NAME:-sandbox_development}
+      #   volumeMounts:
+      #   - name: workspace
+      #     mountPath: /var/lib/postgresql/data
+      #     subPath: postgres
+      #   resources:
+      #     requests:
+      #       memory: "256Mi"
+      #       cpu: "100m"
+      #     limits:
+      #       memory: "512Mi"
+      #       cpu: "500m"
+
+      # # Sidecar: Redis
+      # - name: redis-sidecar
+      #   image: redis:7-alpine
+      #   resources:
+      #     requests:
+      #       memory: "64Mi"
+      #       cpu: "50m"
+      #     limits:
+      #       memory: "128Mi"
+      #       cpu: "200m"
