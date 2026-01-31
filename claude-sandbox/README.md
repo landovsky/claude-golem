@@ -191,17 +191,29 @@ When configured, you'll receive a message when:
 - Claude fails (non-zero exit code)
 - The session is interrupted (Ctrl+C or timeout)
 
-### SOPS Encrypted Secrets
+### Environment Configuration
 
-Project-specific environment variables can be managed with SOPS:
+Project-specific environment variables can be managed two ways:
 
-**Benefits:**
-- Secrets live in your repo (encrypted, safe to commit)
-- Version-controlled with your code
-- No manual k8s secret management per project
-- Works locally and in k8s
+#### .env.claude - Plaintext Config
+For non-sensitive configuration (database names, feature flags, etc.):
 
-**Quick setup:**
+```bash
+# In your project root
+cat > .env.claude << EOF
+DATABASE_NAME=myapp_development
+RAILS_ENV=development
+ENABLE_FEATURE_X=true
+EOF
+
+git add .env.claude
+git commit -m "Add project config"
+```
+
+**Safe to commit** - no encryption needed for public config.
+
+#### .env.sops - Encrypted Secrets
+For sensitive values (API keys, passwords, tokens):
 
 ```bash
 # 1. Generate age key (one-time)
@@ -218,15 +230,15 @@ EOF
 
 # 4. Create encrypted secrets
 sops .env.sops
-# Add: DATABASE_NAME=myapp_dev
+# Add: STRIPE_SECRET_KEY=sk_test_xxx
 # Save (auto-encrypts)
 
 # 5. Commit and use
 git add .sops.yaml .env.sops
-git commit -m "Add encrypted config"
+git commit -m "Add encrypted secrets"
 ```
 
-When the job runs, `.env.sops` is automatically decrypted and loaded.
+**You can use both!** Put public config in `.env.claude` and secrets in `.env.sops`.
 
 **See [docs/SOPS-SETUP.md](docs/SOPS-SETUP.md) for complete guide.**
 

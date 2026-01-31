@@ -1,6 +1,48 @@
-# SOPS Setup Guide
+# Environment Configuration Guide
 
-This guide explains how to use SOPS (Secrets OPerationS) with age encryption to manage project-specific secrets in claude-sandbox.
+This guide explains how to manage environment variables in claude-sandbox using `.env.claude` (plaintext) and `.env.sops` (encrypted).
+
+## Two Approaches
+
+### .env.claude - Plaintext Config
+**For non-sensitive configuration:**
+- ✅ Database names, app hosts, feature flags
+- ✅ Easy to edit (plaintext)
+- ✅ Safe to commit to git
+- ✅ No encryption setup needed
+
+**Example:**
+```bash
+# .env.claude
+DATABASE_NAME=myapp_development
+RAILS_ENV=development
+ENABLE_FEATURE_X=true
+```
+
+### .env.sops - Encrypted Secrets
+**For sensitive values:**
+- ✅ API keys, passwords, tokens
+- ✅ Encrypted at rest
+- ✅ Safe to commit to git
+- ✅ Requires SOPS setup
+
+**Example:**
+```bash
+# .env.sops (shown decrypted)
+STRIPE_SECRET_KEY=sk_test_xxx
+AWS_ACCESS_KEY_ID=AKIA...
+DATABASE_PASSWORD=secret123
+```
+
+### Loading Order
+
+Variables are loaded in this order (later overrides earlier):
+1. **K8s secrets** - GITHUB_TOKEN, CLAUDE_CODE_OAUTH_TOKEN, etc.
+2. **`.env.claude`** - Public project configuration
+3. **`.env.sops`** - Encrypted secrets (can override .env.claude)
+4. **Job env vars** - Explicit overrides in k8s template
+
+**You can use both files together!** Put public config in `.env.claude` and secrets in `.env.sops`.
 
 ## Why SOPS?
 

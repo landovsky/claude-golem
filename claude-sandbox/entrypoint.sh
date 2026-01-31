@@ -97,7 +97,19 @@ info "Branch: $(git branch --show-current)"
 info "Commit: $(git rev-parse --short HEAD)"
 separator
 
-section "Secrets Management"
+section "Environment Configuration"
+
+# Load plaintext environment variables from .env.claude if present
+if [ -f .env.claude ]; then
+  action "Loading .env.claude..."
+  set -a  # Automatically export all variables
+  source .env.claude
+  set +a  # Turn off auto-export
+  success "Environment variables loaded from .env.claude"
+else
+  info "No .env.claude file found"
+fi
+
 # Load encrypted secrets from .env.sops if present
 if [ -f .env.sops ]; then
   if [ -f /secrets/age-key.txt ]; then
@@ -107,13 +119,18 @@ if [ -f .env.sops ]; then
     # Decrypt and export environment variables
     eval "$(sops -d --output-type dotenv .env.sops | sed 's/^/export /')"
 
-    success "Environment variables loaded from .env.sops"
+    success "Encrypted secrets loaded from .env.sops"
   else
     warn ".env.sops found but age key not available at /secrets/age-key.txt"
     warn "Skipping SOPS decryption"
   fi
 else
-  info "No .env.sops file found, using environment variables from secrets"
+  info "No .env.sops file found"
+fi
+
+# Summary
+if [ ! -f .env.claude ] && [ ! -f .env.sops ]; then
+  info "Using environment variables from k8s secrets only"
 fi
 separator
 
