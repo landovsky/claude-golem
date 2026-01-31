@@ -214,8 +214,9 @@ cmd_remote() {
     exit 1
   fi
 
-  # Generate unique job name
-  local job_name="claude-sandbox-$(date +%Y%m%d-%H%M%S)"
+  # Generate unique job name with random suffix to prevent collisions
+  local random_suffix=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
+  local job_name="claude-sandbox-$(date +%Y%m%d-%H%M%S)-${random_suffix}"
 
   log "Creating k8s job: $job_name"
   log "Task: $task"
