@@ -68,6 +68,13 @@ auto_detect_repo() {
     return 1
   fi
 
+  # Convert SSH URLs to HTTPS for token authentication
+  # git@github.com:user/repo.git -> https://github.com/user/repo.git
+  if [[ "$detected_url" =~ ^git@github\.com:(.+)$ ]]; then
+    detected_url="https://github.com/${BASH_REMATCH[1]}"
+    log "Converted SSH URL to HTTPS for token authentication"
+  fi
+
   export REPO_URL="$detected_url"
   log "Auto-detected REPO_URL: $REPO_URL"
 }
