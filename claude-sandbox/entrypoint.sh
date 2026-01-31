@@ -77,23 +77,54 @@ log "Repository: $REPO_URL"
 log "Branch: $(git branch --show-current)"
 log "Commit: $(git rev-parse --short HEAD)"
 
-# Install dependencies (skip if already installed - QUICK FIX for local testing)
-# TODO: Always install for production/k8s runs
-GEMFILE_CHECKSUM=$(md5sum Gemfile.lock 2>/dev/null | cut -d' ' -f1)
-# Check both: checksum matches AND gems are actually available
-GEMS_NEED_INSTALL=false
-if [ ! -f ".bundle/.installed" ] || [ "$(cat .bundle/.installed 2>/dev/null)" != "$GEMFILE_CHECKSUM" ] || ! bundle exec ruby -e "exit 0" 2>/dev/null; then
-  log "Installing Ruby dependencies..."
-  bundle config set --local path 'vendor/bundle'
-  bundle config set --local without 'production'
-  bundle install --jobs 4
-  GEMS_NEED_INSTALL=true
-else
-  log "Ruby dependencies already installed (skipping)"
+# Detect project type and setup accordingly
+log "Detecting project type..."
+
+# Detect Ruby/Rails project
+HAS_RUBY=false
+HAS_RAILS=false
+if [ -f "Gemfile" ]; then
+  HAS_RUBY=true
+  log "Detected Ruby project (Gemfile found)"
+
+  # Check if it's a Rails project
+  if grep -q "gem ['\"]rails['\"]" Gemfile 2>/dev/null || [ -f "config/application.rb" ]; then
+    HAS_RAILS=true
+    log "Detected Rails application"
+  fi
 fi
 
-PACKAGES_NEED_INSTALL=false
+# Detect Node.js project
+HAS_NODE=false
 if [ -f "package.json" ]; then
+  HAS_NODE=true
+  log "Detected Node.js project (package.json found)"
+fi
+
+# If no project files detected, log it
+if [ "$HAS_RUBY" = false ] && [ "$HAS_NODE" = false ]; then
+  log "No Ruby or Node.js project detected, proceeding with generic setup"
+fi
+
+# Install Ruby dependencies if needed
+GEMS_NEED_INSTALL=false
+if [ "$HAS_RUBY" = true ]; then
+  GEMFILE_CHECKSUM=$(md5sum Gemfile.lock 2>/dev/null | cut -d' ' -f1)
+  # Check both: checksum matches AND gems are actually available
+  if [ ! -f ".bundle/.installed" ] || [ "$(cat .bundle/.installed 2>/dev/null)" != "$GEMFILE_CHECKSUM" ] || ! bundle exec ruby -e "exit 0" 2>/dev/null; then
+    log "Installing Ruby dependencies..."
+    bundle config set --local path 'vendor/bundle'
+    bundle config set --local without 'production'
+    bundle install --jobs 4
+    GEMS_NEED_INSTALL=true
+  else
+    log "Ruby dependencies already installed (checksum match)"
+  fi
+fi
+
+# Install Node dependencies if needed
+PACKAGES_NEED_INSTALL=false
+if [ "$HAS_NODE" = true ]; then
   # Ensure node_modules exists with correct ownership
   mkdir -p node_modules
 
@@ -103,15 +134,17 @@ if [ -f "package.json" ]; then
     npm install
     PACKAGES_NEED_INSTALL=true
   else
-    log "Node dependencies already installed (skipping)"
+    log "Node dependencies already installed (checksum match)"
   fi
 fi
 
-# Prepare database
-log "Preparing database..."
-bundle exec rails db:prepare || bundle exec rails db:setup
+# Prepare Rails database if this is a Rails project
+if [ "$HAS_RAILS" = true ]; then
+  log "Preparing Rails database..."
+  bundle exec rails db:prepare || bundle exec rails db:setup
+fi
 
-# Mark dependencies as successfully installed only after db setup works
+# Mark dependencies as successfully installed
 if [ "$GEMS_NEED_INSTALL" = true ]; then
   echo "$GEMFILE_CHECKSUM" > .bundle/.installed
   log "Ruby dependencies cached for next run"
