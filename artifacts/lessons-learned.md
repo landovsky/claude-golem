@@ -27,6 +27,11 @@ Both events contain the user-facing error message, so the filter handles both to
 - Test filters with real CLI output, not just synthetic JSON - the actual event structure may surprise you
 - Use jq from file (`jq -f filter.jq`) for complex multi-line filters to avoid shell quoting issues
 
+### Review addendum (added by reviewer)
+**Critical issue found**: The implementation missed `set -o pipefail` which the plan explicitly warned about in "Risk 5: Exit code not propagating" (plan lines 273-277). Without pipefail, `claude | jq` returns jq's exit code (0), not Claude's exit code, breaking the acceptance criterion "Exit code is non-zero on authentication failure."
+
+**Lesson for implementers**: When a plan lists risks with mitigations, implement ALL mitigations proactively, not just after observing failures. The plan said "may need to use `set -o pipefail` before exec" - this was not a suggestion, it was a requirement for the acceptance criteria to pass.
+
 ## 2026-01-28 - .claude-9nr - Fix inter-stage data passing
 
 ### What worked well
