@@ -179,6 +179,48 @@ artifacts/
 3. **Reliable** - No file existence checks, no Write tool dependency
 4. **Traceable** - All stage outputs visible via `bd show [task-id]`
 
+### Special: Metrics Collection
+
+The reviewer agent emits structured metrics data to track quality trends over time.
+
+**Where:** `.claude-metrics` task (dedicated, persistent data store)
+
+**What:** JSON payload containing:
+- Severity counts (Critical/Major/Minor)
+- Category breakdown (testing, business_logic, code_quality, etc.)
+- Individual issue details (optional, for detailed analysis)
+
+**When:** After every review, even zero-issue reviews
+
+**Why append-only bd comments:**
+- Multiple concurrent reviews can write without conflicts
+- No read-modify-write cycle, no race conditions
+- Historical record preserved automatically
+- Consuming tools can aggregate by reading all comments
+
+**Example payload:**
+```json
+{
+  "v": 1,
+  "ts": "2026-01-31T14:30:00Z",
+  "task": ".claude-abc.4",
+  "parent": ".claude-abc",
+  "severity": {
+    "critical": 0,
+    "major": 2,
+    "minor": 3
+  },
+  "categories": {
+    "testing": 1,
+    "business_logic": 2,
+    "code_quality": 2
+  },
+  "issues": [...]
+}
+```
+
+The `.claude-metrics` task remains open indefinitely as a data store, not a work item. Future reporting tools can parse all comments to generate trends, charts, and insights.
+
 ## Blocked Handling
 
 When an agent blocks:
