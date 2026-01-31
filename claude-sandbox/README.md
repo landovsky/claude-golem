@@ -56,6 +56,24 @@ bin/claude-sandbox local "fix the authentication bug in login controller"
 
 ### Remote (Kubernetes/k3s)
 
+> ⚠️ **WIP - Remote execution with services (Postgres/Redis) is under development**
+>
+> **Working:**
+> - ✅ Basic job execution (clone repo, run Claude, no database)
+> - ✅ SOPS encrypted secrets
+> - ✅ .env.claude plaintext config
+> - ✅ REPO_URL auto-detection
+> - ✅ Parallel deployments
+>
+> **Pending:**
+> - ⏳ Database readiness checks in entrypoint.sh
+> - ⏳ Redis readiness checks in entrypoint.sh
+> - ⏳ Fix hardcoded database name in k8s template
+> - ⏳ Test with Postgres/Redis sidecars enabled
+> - ⏳ Update production job-template.yaml with all fixes
+>
+> See [k8s/TESTING.md](k8s/TESTING.md) for current testing status.
+
 ```bash
 # First, create secrets in your cluster
 # Note: REPO_URL is optional in secret if using auto-detection
