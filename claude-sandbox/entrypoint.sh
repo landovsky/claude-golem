@@ -249,9 +249,20 @@ info "Task: $TASK"
 separator
 
 # Execute Claude with full permissions and live streaming output
-# bash
+# Stream text to stdout, errors displayed with color coding
 exec claude --dangerously-skip-permissions -p "$TASK" \
   --output-format stream-json \
   --verbose \
   --include-partial-messages | \
-  jq -rj 'select(.type == "stream_event" and .event.delta.type? == "text_delta") | .event.delta.text'
+  jq -rj '
+    if .type == "stream_event" and .event.delta.type? == "text_delta" then
+      # Normal text output
+      .event.delta.text
+    elif (.type == "assistant" and .error) or (.type == "result" and .is_error == true) then
+      # Error events - show with color coding
+      "\n\u001b[31m[claude error]\u001b[0m " + (.message.content[0].text // .result // .error // "Unknown error") + "\n"
+    else
+      # Ignore other event types silently
+      empty
+    end
+  '
