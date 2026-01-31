@@ -14,16 +14,36 @@ When you want Claude to work on tasks without supervision:
 
 ## Quick Start
 
+### Authentication
+
+Choose one authentication method:
+
+**Option 1: OAuth Token (Recommended)**
+- Uses your Claude subscription
+- Valid for 1 year
+- Setup once: `claude setup-token`
+
+```bash
+export CLAUDE_CODE_OAUTH_TOKEN="sk-ant-oat01-..."  # From setup-token
+```
+
+**Option 2: API Key**
+- Pay-as-you-go API usage
+- Get from console.anthropic.com
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-api03-..."
+```
+
 ### Local (Docker Compose)
 
 ```bash
-# Get OAuth token (one-time setup, valid 1 year)
-claude setup-token
-# Complete browser login, save the sk-ant-oat01-... token
-
 # Set required environment variables
 export GITHUB_TOKEN="ghp_..."
-export CLAUDE_CODE_OAUTH_TOKEN="sk-ant-oat01-..."  # From setup-token
+export CLAUDE_CODE_OAUTH_TOKEN="sk-ant-oat01-..."  # Or use ANTHROPIC_API_KEY
+
+# REPO_URL can be auto-detected from current git directory
+# Or set explicitly:
 export REPO_URL="https://github.com/you/your-repo.git"
 
 # Optional: Telegram notifications
@@ -38,21 +58,26 @@ bin/claude-sandbox local "fix the authentication bug in login controller"
 
 ```bash
 # First, create secrets in your cluster
+# Note: REPO_URL is optional in secret if using auto-detection
 kubectl create secret generic claude-sandbox-secrets \
   --from-literal=GITHUB_TOKEN="$GITHUB_TOKEN" \
-  --from-literal=ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-  --from-literal=REPO_URL="$REPO_URL" \
+  --from-literal=CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
   --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
   --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
 
-# Build and push image
+# Build and push image (using public Docker Hub)
 bin/claude-sandbox build
-export CLAUDE_REGISTRY="ghcr.io/yourusername"
-bin/claude-sandbox push
+docker tag claude-sandbox:latest landovsky/claude-sandbox:latest
+docker push landovsky/claude-sandbox:latest
 
-# Run remotely
-export CLAUDE_IMAGE="$CLAUDE_REGISTRY/claude-sandbox:latest"
+# Run remotely - REPO_URL auto-detected from current directory
+cd ~/your-project
 bin/claude-sandbox remote "implement user profile page"
+# Auto-detects: REPO_URL from 'git remote get-url origin'
+# Auto-detects: REPO_BRANCH from 'git branch --show-current'
+
+# Or override with explicit values:
+# REPO_URL="https://github.com/other/repo.git" bin/claude-sandbox remote "task"
 
 # Watch logs
 bin/claude-sandbox logs
@@ -105,8 +130,8 @@ claude-sandbox local "work on feature X"
 | Variable | Description |
 |----------|-------------|
 | `GITHUB_TOKEN` | GitHub personal access token with `repo` scope |
-| `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token from `claude setup-token` (valid 1 year, uses your Claude subscription) |
-| `REPO_URL` | Repository URL (auto-detected from `git remote get-url origin`) |
+| `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` | **Choose one:** OAuth token from `claude setup-token` (uses subscription) OR API key (pay-as-you-go) |
+| `REPO_URL` | Repository URL - **auto-detected** from `git remote get-url origin` when using `bin/claude-sandbox` commands |
 
 ### Optional
 

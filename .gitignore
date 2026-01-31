@@ -26,4 +26,5 @@
 # bv (beads viewer) local config and caches
 .bv/
 .beads/.bv.lock
-.beads/export-state/*age-key.txt
+.beads/export-state/*
+age-key.txt
