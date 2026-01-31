@@ -194,5 +194,9 @@ separator
 mkdir -p /home/claude/.claude
 echo '{"hasCompletedOnboarding": true}' > /home/claude/.claude.json
 
-# Execute Claude with full permissions
-exec claude --dangerously-skip-permissions -p "$TASK"
+# Execute Claude with full permissions and live streaming output
+exec claude --dangerously-skip-permissions -p "$TASK" \
+  --output-format stream-json \
+  --verbose \
+  --include-partial-messages | \
+  jq -rj 'select(.type == "stream_event" and .event.delta.type? == "text_delta") | .event.delta.text'
