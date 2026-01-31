@@ -219,11 +219,15 @@ cmd_remote() {
 
   log "Creating k8s job: $job_name"
   log "Task: $task"
+  log "Repository: $REPO_URL"
+  log "Branch: ${REPO_BRANCH:-main}"
 
   # Export for envsubst
   export TASK="$task"
   export JOB_NAME="$job_name"
-  export CLAUDE_IMAGE="${CLAUDE_IMAGE:-claude-sandbox:latest}"
+  export CLAUDE_IMAGE="${CLAUDE_IMAGE:-landovsky/claude-sandbox:latest}"
+  export REPO_URL="$REPO_URL"
+  export REPO_BRANCH="${REPO_BRANCH:-main}"
 
   # Apply job
   envsubst < "$SANDBOX_DIR/k8s/job-template.yaml" | kubectl apply -f -

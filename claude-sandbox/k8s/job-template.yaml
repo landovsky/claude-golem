@@ -55,6 +55,10 @@ spec:
         env:
         - name: TASK
           value: "${TASK}"
+        - name: REPO_URL
+          value: "${REPO_URL}"
+        - name: REPO_BRANCH
+          value: "${REPO_BRANCH}"
         - name: DATABASE_URL
           value: "postgres://claude:claude@localhost:5432/hriste_development"
         - name: REDIS_URL
