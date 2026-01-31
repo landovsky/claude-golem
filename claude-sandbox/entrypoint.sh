@@ -181,20 +181,34 @@ if [ "$HAS_RAILS" = true ]; then
   separator
 fi
 
-# Copy workflow agents if they exist in the repo
-if [ -d "artifacts" ]; then
-  info "Workflow artifacts found in repository"
-fi
+cd /workspace
 
-section "Claude Code Session"
-info "Task: $TASK"
+section "Beads setup..."
+info "Initializing bead database..."
+
+# Setup config with # no-db: false
+mkdir -p .beads
+cat > .beads/config.yaml << 'EOF'
+no-db: true
+EOF
+
+bd --import-only --rename-on-import sync
+success "Beads initialized"
+
+bd setup claude
+success "Claude primed with beads instructions"
 separator
 
 # Configure Claude to skip onboarding (required for OAuth token to work)
 mkdir -p /home/claude/.claude
 echo '{"hasCompletedOnboarding": true}' > /home/claude/.claude.json
 
+section "Claude Code Session"
+info "Task: $TASK"
+separator
+
 # Execute Claude with full permissions and live streaming output
+# bash
 exec claude --dangerously-skip-permissions -p "$TASK" \
   --output-format stream-json \
   --verbose \
