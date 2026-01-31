@@ -250,6 +250,12 @@ cmd_build() {
     cp -r "$HOME/.claude/artifacts" "$claude_config/"
   fi
 
+  # Copy custom commands if they exist
+  if [ -d "$HOME/.claude/commands" ]; then
+    log "Copying commands from ~/.claude/commands/"
+    cp -r "$HOME/.claude/commands" "$claude_config/"
+  fi
+
   # Create a minimal settings.json for the sandbox
   # (don't copy host settings - they may have paths that don't work in container)
   cat > "$claude_config/settings.json" << 'EOF'
