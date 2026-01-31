@@ -22,9 +22,24 @@
 
 set -e
 
+# Find the sandbox installation directory
+# Try: script's parent dir (backward compat), then ~/.claude/claude-sandbox (global install)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-SANDBOX_DIR="$PROJECT_DIR/docker/claude-sandbox"
+CANDIDATE_DIR="$(dirname "$SCRIPT_DIR")"
+
+if [ -f "$CANDIDATE_DIR/docker-compose.yml" ]; then
+  # Called from bin/ subdirectory (backward compatible)
+  SANDBOX_DIR="$CANDIDATE_DIR"
+elif [ -f "$HOME/.claude/claude-sandbox/docker-compose.yml" ]; then
+  # Global installation
+  SANDBOX_DIR="$HOME/.claude/claude-sandbox"
+else
+  echo -e "\033[0;31m[claude-sandbox]\033[0m Cannot find claude-sandbox installation" >&2
+  echo -e "\033[0;31m[claude-sandbox]\033[0m Expected docker-compose.yml in:" >&2
+  echo -e "\033[0;31m[claude-sandbox]\033[0m   - $CANDIDATE_DIR" >&2
+  echo -e "\033[0;31m[claude-sandbox]\033[0m   - $HOME/.claude/claude-sandbox" >&2
+  exit 1
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -35,6 +50,45 @@ NC='\033[0m'
 log() { echo -e "${GREEN}[claude-sandbox]${NC} $1"; }
 warn() { echo -e "${YELLOW}[claude-sandbox]${NC} $1"; }
 error() { echo -e "${RED}[claude-sandbox]${NC} $1" >&2; }
+
+# Auto-detect REPO_URL from current directory if not set
+auto_detect_repo() {
+  if [ -n "$REPO_URL" ]; then
+    # Explicitly set, don't override
+    return 0
+  fi
+
+  # Try to get git remote from current directory
+  local detected_url=$(git -C "$PWD" remote get-url origin 2>/dev/null)
+  if [ -z "$detected_url" ]; then
+    error "REPO_URL not set and cannot auto-detect from current directory"
+    error "Either:"
+    error "  1. Run from a git repository with origin remote, or"
+    error "  2. Set REPO_URL environment variable"
+    return 1
+  fi
+
+  export REPO_URL="$detected_url"
+  log "Auto-detected REPO_URL: $REPO_URL"
+}
+
+# Auto-detect REPO_BRANCH from current directory if not set
+auto_detect_branch() {
+  if [ -n "$REPO_BRANCH" ]; then
+    # Explicitly set, don't override
+    return 0
+  fi
+
+  # Try to get current branch from current directory
+  local detected_branch=$(git -C "$PWD" branch --show-current 2>/dev/null)
+  if [ -n "$detected_branch" ]; then
+    export REPO_BRANCH="$detected_branch"
+    log "Auto-detected REPO_BRANCH: $REPO_BRANCH"
+  else
+    # Default to main (already handled by entrypoint.sh default)
+    log "Using default branch: main"
+  fi
+}
 
 usage() {
   cat <<EOF
@@ -68,7 +122,11 @@ EOF
 check_env() {
   local missing=0
 
-  # Required vars
+  # Auto-detect repository context
+  auto_detect_repo || missing=1
+  auto_detect_branch
+
+  # Required vars (REPO_URL may have been auto-detected)
   for var in GITHUB_TOKEN REPO_URL; do
     if [ -z "${!var}" ]; then
       error "Missing required environment variable: $var"
