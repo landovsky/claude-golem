@@ -12,6 +12,10 @@ on:
         description: 'Tag to use for the image (without v prefix, e.g., 1.0.0)'
         required: true
 
+# Minimal permissions - only what's needed for checkout and Docker push
+permissions:
+  contents: read
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -72,8 +76,9 @@ jobs:
             landovsky/claude-sandbox:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # Build for both amd64 and arm64
-          platforms: linux/amd64,linux/arm64
+          # Note: arm64 disabled due to Dockerfile hardcoding amd64 URLs for SOPS/age
+          # See Dockerfile lines 72-77 - fix there first before enabling multi-arch
+          platforms: linux/amd64
 
       - name: Image pushed successfully
         run: |

@@ -12,6 +12,10 @@ on:
       - 'claude-sandbox/docker-compose.yml'
       - '.github/workflows/docker-*.yml'
 
+# Minimal permissions - only what's needed for checkout
+permissions:
+  contents: read
+
 jobs:
   test-build:
     runs-on: ubuntu-latest

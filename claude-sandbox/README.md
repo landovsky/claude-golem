@@ -109,7 +109,7 @@ Docker images are automatically built and pushed to Docker Hub when a semantic v
 1. **Tag creation triggers build**: When you push a tag matching `v*.*.*` (e.g., `v1.0.0`, `v2.3.4`), GitHub Actions automatically:
    - Builds the `landovsky/claude-sandbox` image
    - Pushes with both version tag (e.g., `1.0.0`) and `latest`
-   - Builds for both amd64 and arm64 architectures
+   - Currently builds for amd64 only (arm64 requires Dockerfile changes for SOPS/age)
 
 2. **PR validation**: Pull requests that modify Docker-related files trigger a test build to catch issues early
 
