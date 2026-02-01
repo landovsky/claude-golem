@@ -50,6 +50,7 @@ NC='\033[0m'
 log() { echo -e "${GREEN}[claude-sandbox]${NC} $1"; }
 warn() { echo -e "${YELLOW}[claude-sandbox]${NC} $1"; }
 error() { echo -e "${RED}[claude-sandbox]${NC} $1" >&2; }
+success() { echo -e "${GREEN}[claude-sandbox]${NC} ✓ $1"; }
 
 # Auto-detect REPO_URL from current directory if not set
 auto_detect_repo() {
@@ -95,6 +96,69 @@ auto_detect_branch() {
     # Default to main (already handled by entrypoint.sh default)
     log "Using default branch: main"
   fi
+}
+
+# Auto-detect Ruby version from .ruby-version file
+auto_detect_ruby_version() {
+  # Allow manual override via IMAGE_TAG
+  if [ -n "$IMAGE_TAG" ]; then
+    return 0
+  fi
+
+  local ruby_version=""
+  local versions_file="$SANDBOX_DIR/ruby-versions.yaml"
+
+  # Try to read .ruby-version from repository
+  if [ -d "$PWD/.git" ]; then
+    # Local git repository - check if REPO_URL points here
+    local current_remote=$(git -C "$PWD" remote get-url origin 2>/dev/null || echo "")
+    if [ "$current_remote" = "$REPO_URL" ] || [ -z "$REPO_URL" ]; then
+      # We're in the target repository
+      if [ -f "$PWD/.ruby-version" ]; then
+        ruby_version=$(cat "$PWD/.ruby-version" | tr -d '[:space:]')
+        log "Found .ruby-version in current directory"
+      fi
+    fi
+  fi
+
+  # If not found locally, try git archive for remote repos
+  if [ -z "$ruby_version" ] && [ -n "$REPO_URL" ]; then
+    # Try git archive (works for both local paths and remote URLs)
+    ruby_version=$(git archive --remote="$REPO_URL" HEAD .ruby-version 2>/dev/null | tar -xO 2>/dev/null | tr -d '[:space:]' || echo "")
+    if [ -n "$ruby_version" ]; then
+      log "Found .ruby-version in repository via git archive"
+    fi
+  fi
+
+  # If no .ruby-version found, use default
+  if [ -z "$ruby_version" ]; then
+    local default_version=$(grep -E '^\s*default:\s*"[0-9]+\.[0-9]+"' "$versions_file" | grep -oE '[0-9]+\.[0-9]+')
+    export IMAGE_TAG="ruby-${default_version}"
+    log "No .ruby-version found, using default: ${IMAGE_TAG}"
+    return 0
+  fi
+
+  # Extract major.minor from version (e.g., "3.3.1" -> "3.3")
+  local major_minor=$(echo "$ruby_version" | grep -oE '^[0-9]+\.[0-9]+')
+  if [ -z "$major_minor" ]; then
+    error "Invalid .ruby-version format: $ruby_version"
+    error "Expected format: X.Y or X.Y.Z (e.g., 3.3 or 3.3.1)"
+    return 1
+  fi
+
+  # Validate against supported versions
+  if ! grep -qE "^\s*\"${major_minor}\":" "$versions_file"; then
+    error "Ruby ${major_minor} is not supported"
+    error "Supported versions:"
+    grep -E '^\s*"[0-9]+\.[0-9]+":\s*"[0-9]' "$versions_file" | sed 's/[":,]//g' | awk '{print "  - Ruby " $1 " (" $2 ")"}'
+    error ""
+    error "To add support for Ruby ${major_minor}, edit $versions_file and rebuild images with:"
+    error "  bin/claude-sandbox build"
+    return 1
+  fi
+
+  export IMAGE_TAG="ruby-${major_minor}"
+  log "Detected Ruby version: ${major_minor} (using image: claude-sandbox:${IMAGE_TAG})"
 }
 
 usage() {
@@ -168,19 +232,27 @@ cmd_local() {
 
   check_env
 
+  # Auto-detect Ruby version if not manually set
+  auto_detect_ruby_version || exit 1
+
+  # Default to latest if no IMAGE_TAG was set
+  IMAGE_TAG="${IMAGE_TAG:-latest}"
+
   log "Starting local sandbox..."
   log "Task: $task"
+  log "Image: claude-sandbox:${IMAGE_TAG}"
 
   cd "$SANDBOX_DIR"
 
   # Check if image exists
-  if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^claude-sandbox:latest$"; then
-    error "Image not found. Run 'bin/claude-sandbox build' first."
+  if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^claude-sandbox:${IMAGE_TAG}$"; then
+    error "Image claude-sandbox:${IMAGE_TAG} not found."
+    error "Run 'bin/claude-sandbox build' first."
     exit 1
   fi
 
-  # Run with task
-  docker compose run --rm \
+  # Run with task, passing IMAGE_TAG to docker-compose
+  IMAGE_TAG="$IMAGE_TAG" docker compose run -it --rm \
     -e TASK="$task" \
     -e GITHUB_TOKEN="$GITHUB_TOKEN" \
     -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
@@ -202,6 +274,9 @@ cmd_remote() {
 
   check_env
 
+  # Auto-detect Ruby version if not manually set
+  auto_detect_ruby_version || exit 1
+
   # Check kubectl is available
   if ! command -v kubectl &> /dev/null; then
     error "kubectl not found - required for remote execution"
@@ -218,15 +293,23 @@ cmd_remote() {
   local random_suffix=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
   local job_name="claude-sandbox-$(date +%Y%m%d-%H%M%S)-${random_suffix}"
 
+  # Append Ruby version tag to image if detected
+  local base_image="${CLAUDE_IMAGE:-landovsky/claude-sandbox}"
+  # Remove :latest suffix if present
+  base_image="${base_image%:latest}"
+  # Add detected tag or default to latest
+  local full_image="${base_image}:${IMAGE_TAG:-latest}"
+
   log "Creating k8s job: $job_name"
   log "Task: $task"
   log "Repository: $REPO_URL"
   log "Branch: ${REPO_BRANCH:-main}"
+  log "Image: $full_image"
 
   # Export for envsubst
   export TASK="$task"
   export JOB_NAME="$job_name"
-  export CLAUDE_IMAGE="${CLAUDE_IMAGE:-landovsky/claude-sandbox:latest}"
+  export CLAUDE_IMAGE="$full_image"
   export REPO_URL="$REPO_URL"
   export REPO_BRANCH="${REPO_BRANCH:-main}"
 
@@ -239,7 +322,7 @@ cmd_remote() {
 }
 
 cmd_build() {
-  log "Building Docker image..."
+  log "Building Docker images for all Ruby versions..."
   cd "$SANDBOX_DIR"
 
   # Copy Claude config (agents, settings) to build context
@@ -279,14 +362,51 @@ cmd_build() {
 }
 EOF
 
-  log "Building image..."
-  docker build -t claude-sandbox:latest .
+  # Parse ruby-versions.yaml and build each version
+  # Using grep/awk to avoid dependency on yq or python
+  local versions_file="$SANDBOX_DIR/ruby-versions.yaml"
+  if [ ! -f "$versions_file" ]; then
+    error "ruby-versions.yaml not found"
+    exit 1
+  fi
+
+  # Extract versions from YAML (lines like: "3.2": "3.2.6")
+  local version_count=0
+  local latest_version=""
+  local latest_tag=""
+
+  while IFS= read -r line; do
+    # Match lines like: "3.2": "3.2.6"
+    if [[ "$line" =~ \"([0-9]+\.[0-9]+)\":[[:space:]]*\"([0-9]+\.[0-9]+\.[0-9]+)\" ]]; then
+      local major_minor="${BASH_REMATCH[1]}"
+      local full_version="${BASH_REMATCH[2]}"
+      local image_tag="ruby-${major_minor}"
+
+      log "Building Ruby ${full_version}..."
+      docker build --build-arg RUBY_VERSION="${full_version}" \
+        -t "claude-sandbox:${image_tag}" .
+
+      success "Tagged as claude-sandbox:${image_tag}"
+      version_count=$((version_count + 1))
+
+      # Track latest version for tagging
+      latest_version="$full_version"
+      latest_tag="$image_tag"
+    fi
+  done < <(grep -E '^\s*"[0-9]+\.[0-9]+":\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$versions_file")
+
+  # Tag the latest version as :latest for backward compatibility
+  if [ -n "$latest_tag" ]; then
+    log "Tagging claude-sandbox:${latest_tag} as claude-sandbox:latest"
+    docker tag "claude-sandbox:${latest_tag}" "claude-sandbox:latest"
+    version_count=$((version_count + 1))
+  fi
 
   # Clean up copied config but keep .gitkeep so docker compose doesn't fail
   find "$claude_config" -type f ! -name '.gitkeep' -delete
   find "$claude_config" -mindepth 1 -type d -delete 2>/dev/null || true
 
-  log "Build complete"
+  log "Build complete - ${version_count} images created"
 }
 
 cmd_push() {
@@ -297,14 +417,35 @@ cmd_push() {
     exit 1
   fi
 
-  local image="$registry/claude-sandbox:latest"
-  log "Pushing to $image..."
+  log "Pushing all Ruby version images to registry..."
 
-  docker tag claude-sandbox:latest "$image"
-  docker push "$image"
+  local versions_file="$SANDBOX_DIR/ruby-versions.yaml"
+  local push_count=0
 
-  log "Push complete"
-  log "Update CLAUDE_IMAGE=$image for remote runs"
+  # Push each Ruby version
+  while IFS= read -r line; do
+    if [[ "$line" =~ \"([0-9]+\.[0-9]+)\":[[:space:]]*\"([0-9]+\.[0-9]+\.[0-9]+)\" ]]; then
+      local major_minor="${BASH_REMATCH[1]}"
+      local image_tag="ruby-${major_minor}"
+      local full_image="$registry/claude-sandbox:${image_tag}"
+
+      log "Pushing $full_image..."
+      docker tag "claude-sandbox:${image_tag}" "$full_image"
+      docker push "$full_image"
+      success "Pushed $full_image"
+      push_count=$((push_count + 1))
+    fi
+  done < <(grep -E '^\s*"[0-9]+\.[0-9]+":\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$versions_file")
+
+  # Push latest tag
+  local latest_image="$registry/claude-sandbox:latest"
+  log "Pushing $latest_image..."
+  docker tag "claude-sandbox:latest" "$latest_image"
+  docker push "$latest_image"
+  push_count=$((push_count + 1))
+
+  log "Push complete - ${push_count} images pushed"
+  log "For remote runs, use: export CLAUDE_IMAGE=$registry/claude-sandbox"
 }
 
 cmd_logs() {
