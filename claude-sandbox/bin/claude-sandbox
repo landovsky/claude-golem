@@ -161,6 +161,34 @@ auto_detect_ruby_version() {
   log "Detected Ruby version: ${major_minor} (using image: claude-sandbox:${IMAGE_TAG})"
 }
 
+# Extract repository owner from git remote origin
+# Handles both SSH (git@github.com:owner/repo.git) and HTTPS (https://github.com/owner/repo.git)
+# Returns empty string for non-GitHub remotes (GitLab, Bitbucket, etc.)
+get_repo_owner() {
+  local git_dir="${1:-.}"
+  local remote_url=$(git -C "$git_dir" remote get-url origin 2>/dev/null)
+  if [ -z "$remote_url" ]; then
+    echo ""
+    return 1
+  fi
+
+  # Extract owner from both formats
+  # SSH: git@github.com:owner/repo.git -> owner
+  # HTTPS: https://github.com/owner/repo.git -> owner
+  local owner=$(echo "$remote_url" | sed -E 's|^git@github\.com:([^/]+)/.*|\1|; s|^https://github\.com/([^/]+)/.*|\1|')
+
+  # Validate: owner should be alphanumeric with dashes/underscores only
+  # If URL didn't match GitHub patterns, sed passes it through unchanged
+  # which would contain invalid chars like : / @
+  if [[ "$owner" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "$owner"
+  else
+    # Non-GitHub remote or invalid format, return empty for fallback
+    echo ""
+    return 1
+  fi
+}
+
 usage() {
   cat <<EOF
 Usage: claude-sandbox <command> [options]
@@ -293,8 +321,21 @@ cmd_remote() {
   local random_suffix=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
   local job_name="claude-sandbox-$(date +%Y%m%d-%H%M%S)-${random_suffix}"
 
+  # Auto-detect CLAUDE_IMAGE from git remote origin owner if not set
+  if [ -z "$CLAUDE_IMAGE" ]; then
+    local owner=$(get_repo_owner "$SANDBOX_DIR")
+    if [ -n "$owner" ]; then
+      export CLAUDE_IMAGE="${owner}/claude-sandbox:latest"
+      log "Auto-detected CLAUDE_IMAGE: $CLAUDE_IMAGE"
+    else
+      # Fallback to original hardcoded value if can't detect
+      export CLAUDE_IMAGE="landovsky/claude-sandbox:latest"
+      warn "Could not detect repository owner, using default: $CLAUDE_IMAGE"
+    fi
+  fi
+
   # Append Ruby version tag to image if detected
-  local base_image="${CLAUDE_IMAGE:-landovsky/claude-sandbox}"
+  local base_image="${CLAUDE_IMAGE}"
   # Remove :latest suffix if present
   base_image="${base_image%:latest}"
   # Add detected tag or default to latest

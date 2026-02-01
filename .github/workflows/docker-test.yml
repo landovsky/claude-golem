@@ -1,0 +1,59 @@
+name: Test Docker Build
+
+# Run on PRs that modify Docker-related files
+# This catches build issues before merging
+on:
+  pull_request:
+    paths:
+      - 'claude-sandbox/Dockerfile'
+      - 'claude-sandbox/entrypoint.sh'
+      - 'claude-sandbox/safe-git'
+      - 'claude-sandbox/notify-telegram.sh'
+      - 'claude-sandbox/docker-compose.yml'
+      - '.github/workflows/docker-*.yml'
+
+# Minimal permissions - only what's needed for checkout
+permissions:
+  contents: read
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare claude-config directory
+        working-directory: ./claude-sandbox
+        run: |
+          # Create minimal claude-config structure for test builds
+          mkdir -p claude-config/agents
+          mkdir -p claude-config/artifacts
+          mkdir -p claude-config/commands
+
+          # Create minimal settings.json
+          cat > claude-config/settings.json << 'EOF'
+          {
+            "permissions": {
+              "allow": [],
+              "deny": []
+            }
+          }
+          EOF
+
+          echo "Created minimal claude-config for test build"
+
+      - name: Test Docker build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./claude-sandbox
+          push: false
+          tags: claude-sandbox:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build successful
+        run: echo "✓ Docker build completed successfully"

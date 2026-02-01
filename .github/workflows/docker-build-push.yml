@@ -1,0 +1,88 @@
+name: Build and Push Docker Image
+
+# Trigger on semantic version tags (v1.0.0, v2.3.4, etc.)
+# This works with release-it or any other release tool that creates semver tags
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to use for the image (without v prefix, e.g., 1.0.0)'
+        required: true
+
+# Minimal permissions - only what's needed for checkout and Docker push
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            # Strip 'v' prefix from tag (v1.0.0 -> 1.0.0)
+            VERSION=${GITHUB_REF_NAME#v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Prepare claude-config directory
+        working-directory: ./claude-sandbox
+        run: |
+          # Create minimal claude-config structure for CI builds
+          # Unlike local builds via bin/claude-sandbox, we don't copy from ~/.claude
+          # because that doesn't exist in CI environment
+          mkdir -p claude-config/agents
+          mkdir -p claude-config/artifacts
+          mkdir -p claude-config/commands
+
+          # Create minimal settings.json
+          cat > claude-config/settings.json << 'EOF'
+          {
+            "permissions": {
+              "allow": [],
+              "deny": []
+            }
+          }
+          EOF
+
+          echo "Created minimal claude-config for CI build"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./claude-sandbox
+          push: true
+          # Uses repository owner for automatic fork support
+          tags: |
+            ${{ github.repository_owner }}/claude-sandbox:${{ steps.version.outputs.version }}
+            ${{ github.repository_owner }}/claude-sandbox:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Note: arm64 disabled due to Dockerfile hardcoding amd64 URLs for SOPS/age
+          # See Dockerfile lines 72-77 - fix there first before enabling multi-arch
+          platforms: linux/amd64
+
+      - name: Image pushed successfully
+        run: |
+          echo "✓ Image pushed to Docker Hub:"
+          echo "  - ${{ github.repository_owner }}/claude-sandbox:${{ steps.version.outputs.version }}"
+          echo "  - ${{ github.repository_owner }}/claude-sandbox:latest"

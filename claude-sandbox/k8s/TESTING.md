@@ -13,7 +13,7 @@ This guide walks through testing the claude-sandbox Kubernetes deployment, start
 
 ### Step 1: Image Available
 
-Public image ready to use: `landovsky/claude-sandbox:latest`
+Public image ready to use: `landovsky/claude-sandbox:latest` (auto-detected from repository owner for forks)
 
 To use your own custom image:
 ```bash
@@ -62,7 +62,9 @@ kubectl get secret claude-sandbox-secrets
 ```bash
 cd ~/.claude/claude-sandbox/k8s
 
-# Run test with simple task (uses landovsky/claude-sandbox:latest by default)
+# Run test with simple task
+# Auto-detects image name from git remote origin (e.g., landovsky/claude-sandbox:latest)
+# Falls back to landovsky/claude-sandbox:latest if detection fails
 ./test-deployment.sh test "list files in the repository and show git status"
 
 # Or override with your custom image:
