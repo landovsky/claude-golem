@@ -60,23 +60,23 @@ bin/claude-sandbox local "fix the authentication bug in login controller"
 
 ### Remote (Kubernetes/k3s)
 
-> ⚠️ **WIP - Remote execution with services (Postgres/Redis) is under development**
->
-> **Working:**
-> - ✅ Basic job execution (clone repo, run Claude, no database)
-> - ✅ SOPS encrypted secrets
-> - ✅ .env.claude plaintext config
-> - ✅ REPO_URL auto-detection
-> - ✅ Parallel deployments
->
-> **Pending:**
-> - ⏳ Database readiness checks in entrypoint.sh
-> - ⏳ Redis readiness checks in entrypoint.sh
-> - ⏳ Fix hardcoded database name in k8s template
-> - ⏳ Test with Postgres/Redis sidecars enabled
-> - ⏳ Update production job-template.yaml with all fixes
->
-> See [k8s/TESTING.md](k8s/TESTING.md) for current testing status.
+**Features:**
+- ✅ Basic job execution (clone repo, run Claude)
+- ✅ Dynamic sidecar provisioning (only includes required services)
+- ✅ SOPS encrypted secrets
+- ✅ .env.claude plaintext config
+- ✅ REPO_URL auto-detection
+- ✅ Parallel deployments
+
+**Dynamic Sidecars:**
+K8s jobs now use the same service detection as local Docker Compose. Only required sidecars are included:
+- Scans repository before job creation
+- Conditionally includes postgres-sidecar only when needed
+- Conditionally includes redis-sidecar only when needed
+- Falls back to all sidecars if detection fails (safe default)
+- Same git archive limitation as local (GitHub.com HTTPS not supported)
+
+See [k8s/TESTING.md](k8s/TESTING.md) for testing details.
 
 ```bash
 # First, create secrets in your cluster
@@ -291,7 +291,7 @@ The sandbox container includes (Rails-optimized stack):
 
 ### Dynamic Service Composition
 
-The sandbox automatically detects which services your project needs and only starts those services:
+The sandbox automatically detects which services your project needs and only starts those services. This works for **both local (Docker Compose) and remote (Kubernetes) execution**.
 
 **Detection logic:**
 - Scans `Gemfile` for gems like `pg`, `redis`, `sidekiq`
@@ -300,10 +300,18 @@ The sandbox automatically detects which services your project needs and only sta
 - Only starts Redis if redis client or job queue library is detected
 
 **How it works:**
+
+*Local (Docker Compose):*
 1. Pre-launch detection runs before `docker compose up`
 2. Analyzes repository files (local or via `git archive`)
 3. Builds appropriate `--profile` flags for Docker Compose
 4. Only required services are started
+
+*Remote (Kubernetes):*
+1. Pre-launch detection runs before job creation
+2. Analyzes repository files (same detection script as local)
+3. Generates job YAML with only required sidecar containers
+4. Conditionally includes DATABASE_URL/REDIS_URL env vars
 
 **Fallback behavior:**
 - If detection fails or can't access repository files, starts all services (safe default)
@@ -312,7 +320,7 @@ The sandbox automatically detects which services your project needs and only sta
 
 **Benefits:**
 - Faster startup when services aren't needed
-- Lower resource usage
+- Lower resource usage (especially in K8s where each sidecar consumes cluster resources)
 - Same environment guarantees (services are there when needed)
 
 This happens automatically - no configuration required.

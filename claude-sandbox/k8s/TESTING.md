@@ -97,29 +97,89 @@ kubectl logs <pod-name> -c claude
 ./test-deployment.sh cleanup
 ```
 
-## Phase 2: Add Database Services
+## Phase 2: Test Dynamic Sidecar Detection
 
-Once Phase 1 works, uncomment the sidecars in `job-template-test.yaml`:
+The `cmd_remote()` function now dynamically generates job YAML with only the required sidecars based on repository analysis.
 
+### Test with different repository types:
+
+**No services needed (static site, simple scripts):**
 ```bash
-# Edit job-template-test.yaml
-# Uncomment the postgres-sidecar and redis-sidecar sections
-# Uncomment DATABASE_URL and REDIS_URL env vars
+export REPO_URL="https://github.com/yourusername/static-site.git"
+bin/claude-sandbox remote "list files and show repository structure"
+
+# Verify: Job should have only claude container, no sidecars
+kubectl get pod <pod-name> -o json | jq '.spec.containers | length'
+# Expected: 1
 ```
 
-Then test with a Rails project that needs database:
+**Only PostgreSQL needed (Rails app with pg gem):**
+```bash
+export REPO_URL="https://github.com/yourusername/rails-app-with-pg.git"
+bin/claude-sandbox remote "run rails db:migrate and show status"
+
+# Verify: Job should have claude + postgres-sidecar
+kubectl get pod <pod-name> -o json | jq '.spec.containers | length'
+# Expected: 2
+kubectl get pod <pod-name> -o json | jq '.spec.containers[].name'
+# Expected: "claude", "postgres-sidecar"
+```
+
+**Only Redis needed (app with redis gem, no database):**
+```bash
+export REPO_URL="https://github.com/yourusername/redis-only-app.git"
+bin/claude-sandbox remote "test redis connection"
+
+# Verify: Job should have claude + redis-sidecar
+kubectl get pod <pod-name> -o json | jq '.spec.containers | length'
+# Expected: 2
+```
+
+**Both services needed:**
+```bash
+export REPO_URL="https://github.com/yourusername/full-rails-app.git"
+bin/claude-sandbox remote "run full test suite"
+
+# Verify: Job should have claude + postgres-sidecar + redis-sidecar
+kubectl get pod <pod-name> -o json | jq '.spec.containers | length'
+# Expected: 3
+```
+
+### Verify environment variables:
+
+Check that DATABASE_URL and REDIS_URL are only included when sidecars are present:
 
 ```bash
-export REPO_URL="https://github.com/yourusername/rails-app.git"
-kubectl delete secret claude-sandbox-secrets
-kubectl create secret generic claude-sandbox-secrets \
-  --from-literal=GITHUB_TOKEN="$GITHUB_TOKEN" \
-  --from-literal=CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
-  --from-literal=REPO_URL="$REPO_URL" \
-  --from-literal=TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}" \
-  --from-literal=TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+# No services
+kubectl get pod <pod-name> -o json | jq '.spec.containers[0].env[] | select(.name=="DATABASE_URL" or .name=="REDIS_URL")'
+# Expected: No output
 
-./test-deployment.sh test "run rails db:migrate and show status"
+# Only postgres
+kubectl get pod <pod-name> -o json | jq '.spec.containers[0].env[] | select(.name=="DATABASE_URL")'
+# Expected: DATABASE_URL present
+kubectl get pod <pod-name> -o json | jq '.spec.containers[0].env[] | select(.name=="REDIS_URL")'
+# Expected: No output
+
+# Only redis
+kubectl get pod <pod-name> -o json | jq '.spec.containers[0].env[] | select(.name=="REDIS_URL")'
+# Expected: REDIS_URL present
+kubectl get pod <pod-name> -o json | jq '.spec.containers[0].env[] | select(.name=="DATABASE_URL")'
+# Expected: No output
+```
+
+### Test fallback behavior:
+
+**Detection fails (GitHub.com HTTPS URL without local clone):**
+```bash
+# From a directory that's NOT the target repository
+cd /tmp
+export REPO_URL="https://github.com/yourusername/some-repo.git"
+bin/claude-sandbox remote "test task"
+
+# Expected log output: "Service detection failed, including all sidecars"
+# Verify: Job should have all 3 containers (fail-open)
+kubectl get pod <pod-name> -o json | jq '.spec.containers | length'
+# Expected: 3
 ```
 
 ## Phase 3: Production Template
@@ -193,6 +253,7 @@ kubectl exec <pod-name> -c claude -- redis-cli -h localhost ping
 
 ## Test Checklist
 
+**Basic functionality:**
 - [ ] Image builds successfully
 - [ ] Image pushes to registry
 - [ ] Secrets created in cluster
@@ -205,6 +266,18 @@ kubectl exec <pod-name> -c claude -- redis-cli -h localhost ping
 - [ ] Job completes successfully
 - [ ] Telegram notification sent (if configured)
 - [ ] Job cleanup works (TTL)
+
+**Dynamic sidecar detection:**
+- [ ] Job with no services has 1 container (claude only)
+- [ ] Job with only postgres has 2 containers (claude + postgres-sidecar)
+- [ ] Job with only redis has 2 containers (claude + redis-sidecar)
+- [ ] Job with both services has 3 containers (claude + both sidecars)
+- [ ] DATABASE_URL only present when postgres-sidecar included
+- [ ] REDIS_URL only present when redis-sidecar included
+- [ ] Detection failure falls back to all sidecars (logged as warning)
+- [ ] Local repository detection works correctly
+- [ ] Git archive detection works for supported git servers
+- [ ] GitHub.com HTTPS URLs fall back to all sidecars (expected limitation)
 
 ## Current Status
 
