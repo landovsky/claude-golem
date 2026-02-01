@@ -76,3 +76,19 @@
 ### Process improvements
 - **Planner checklist addition**: When specifying branch names, avoid leading dots in any path segment. Git has restrictions on special characters in branch names.
 - **Multi-phase features benefit from explicit interface contracts**: For features spanning multiple tasks (Phase 1 detection, Phase 2 docker-compose, Phase 3 k8s), define the exact variable/flag names in Phase 1 plan so later phases can reference them without ambiguity.
+
+## 2026-02-01 - .claude-4nq - Docker Compose dynamic service profiles
+
+### What worked well
+- **Timing paradox identified early**: The plan correctly identified that entrypoint.sh detection runs INSIDE the container AFTER Docker Compose starts, but profiles must be decided BEFORE. Creating a pre-launch detection script (`bin/detect-services.sh`) solved this cleanly.
+- **Two-detection-point architecture**: Keeping both pre-launch detection (for profiles) and in-container detection (for logging/validation) provides redundancy. Good architectural decision.
+- **Fallback chain design**: Empty detection -> all services, missing script -> all services, git archive fails -> all services. The "fail open" approach ensures existing setups never break.
+- **Profile naming as interface contract**: Plan specified exact profile names ("with-postgres", "with-redis", "claude") as the contract between docker-compose.yml and the launcher. Clean separation of concerns.
+- **Implementer judgment on documentation location**: Plan incorrectly specified `/Users/tomas/.claude/README.md` but implementer correctly placed docs in `/Users/tomas/.claude/claude-sandbox/README.md` since it's a sandbox-specific feature.
+
+### What to avoid
+- **Trailing whitespace in shell pipelines**: The deduplication `echo "$profiles" | tr ' ' '\n' | sort -u | tr '\n' ' '` leaves trailing whitespace. While harmless in this case (word splitting handles it), it could cause issues in other contexts. Consider `| xargs` or `| sed 's/ $//'` to clean output.
+
+### Process improvements
+- **Planner: verify file path correctness for documentation updates**: The plan listed updating `/Users/tomas/.claude/README.md` when the correct location was `claude-sandbox/README.md`. File paths in "Documentation to update" should be verified against actual file structure.
+- **Multi-component features need timing analysis**: When a feature involves multiple components (pre-launch script, docker-compose, entrypoint), the plan should explicitly diagram the timing relationship (what runs when, what data is available at each point).
