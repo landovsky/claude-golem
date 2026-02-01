@@ -289,6 +289,34 @@ The sandbox container includes (Rails-optimized stack):
 - Claude Code CLI
 - SOPS + age for encrypted secrets management
 
+### Dynamic Service Composition
+
+The sandbox automatically detects which services your project needs and only starts those services:
+
+**Detection logic:**
+- Scans `Gemfile` for gems like `pg`, `redis`, `sidekiq`
+- Scans `package.json` for packages like `pg`, `redis`, `bull`, `bullmq`
+- Only starts PostgreSQL if postgres client is detected
+- Only starts Redis if redis client or job queue library is detected
+
+**How it works:**
+1. Pre-launch detection runs before `docker compose up`
+2. Analyzes repository files (local or via `git archive`)
+3. Builds appropriate `--profile` flags for Docker Compose
+4. Only required services are started
+
+**Fallback behavior:**
+- If detection fails or can't access repository files, starts all services (safe default)
+- For GitHub.com HTTPS URLs, `git archive` is not supported - falls back to all services
+- Local repositories and git servers that support `git archive` get accurate detection
+
+**Benefits:**
+- Faster startup when services aren't needed
+- Lower resource usage
+- Same environment guarantees (services are there when needed)
+
+This happens automatically - no configuration required.
+
 ## Safety Features
 
 ### Protected Branches
