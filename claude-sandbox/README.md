@@ -2,6 +2,10 @@
 
 Run Claude Code autonomously in an isolated Docker environment with full permissions (`--dangerously-skip-permissions`).
 
+## Current Scope: Rails Ecosystem
+
+This sandbox is currently optimized for **Ruby on Rails projects**. It includes PostgreSQL (with PostGIS), Redis, Chrome for system tests, and supports multiple Ruby versions. After battle testing in production Rails environments, the architecture can be revisioned to support other ecosystems (Node.js, Python, Go, etc.) through similar patterns.
+
 ## Why?
 
 When you want Claude to work on tasks without supervision:
@@ -202,10 +206,10 @@ This means:
 
 ## What's Included
 
-The sandbox container includes:
-- Ruby 3.4.x (matches project)
-- Node.js 20 LTS
-- PostgreSQL 16 client
+The sandbox container includes (Rails-optimized stack):
+- Ruby (3.2, 3.3, or 3.4 - auto-detected from project)
+- Node.js 22 LTS
+- PostgreSQL 16 client (with PostGIS support)
 - Redis 7 client
 - Google Chrome (for Capybara system tests)
 - beads (`bd`) for task tracking
