@@ -83,10 +83,9 @@ kubectl create secret generic claude-sandbox-secrets \
   --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
   --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
 
-# Build and push image (using public Docker Hub)
-bin/claude-sandbox build
-docker tag claude-sandbox:latest landovsky/claude-sandbox:latest
-docker push landovsky/claude-sandbox:latest
+# Images are automatically built via CI/CD on release tags
+# Use the latest stable image from Docker Hub:
+# landovsky/claude-sandbox:latest (or specific version like :1.0.0)
 
 # Run remotely - REPO_URL auto-detected from current directory
 cd ~/your-project
@@ -100,6 +99,54 @@ bin/claude-sandbox remote "implement user profile page"
 # Watch logs
 bin/claude-sandbox logs
 ```
+
+## CI/CD - Automated Image Builds
+
+Docker images are automatically built and pushed to Docker Hub when a semantic version tag is created.
+
+### How It Works
+
+1. **Tag creation triggers build**: When you push a tag matching `v*.*.*` (e.g., `v1.0.0`, `v2.3.4`), GitHub Actions automatically:
+   - Builds the `landovsky/claude-sandbox` image
+   - Pushes with both version tag (e.g., `1.0.0`) and `latest`
+   - Builds for both amd64 and arm64 architectures
+
+2. **PR validation**: Pull requests that modify Docker-related files trigger a test build to catch issues early
+
+### Required GitHub Secrets
+
+For automated builds to work, the following secrets must be configured in the repository:
+
+- `DOCKERHUB_USERNAME`: Your Docker Hub username
+- `DOCKERHUB_TOKEN`: Docker Hub access token (create at hub.docker.com/settings/security)
+
+### Creating a Release
+
+**Option 1: Manual tag**
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+**Option 2: Using release-it** (when configured)
+```bash
+npx release-it
+```
+
+### Manual Build (Local Development)
+
+For local testing or when you need to bake in custom agents:
+
+```bash
+# Build with your local ~/.claude/agents
+bin/claude-sandbox build
+
+# Push manually (if needed)
+docker tag claude-sandbox:latest landovsky/claude-sandbox:latest
+docker push landovsky/claude-sandbox:latest
+```
+
+**Note**: CI builds use minimal/empty agent configuration. Local builds via `bin/claude-sandbox build` copy your `~/.claude/agents`, `~/.claude/artifacts`, and `~/.claude/commands` into the image.
 
 ## Global Installation
 
