@@ -61,3 +61,18 @@
 ### Process improvements
 - **Planner checklist addition**: When parsing URLs with regex, list what happens when patterns don't match. Include non-matching cases in the testing approach.
 - **Reviewer testing**: For URL/string parsing functions, always test with inputs that are similar but not exact matches to the expected pattern (e.g., GitLab URL when expecting GitHub).
+
+## 2026-02-01 - .claude-53k - Service detection in entrypoint.sh
+
+### What worked well
+- **Plan with exact code snippets**: The planner provided complete bash code for detection logic, which the implementer could directly adopt. This eliminated ambiguity about grep patterns, variable names, and section structure.
+- **Pattern references to line numbers**: Referencing existing code (lines 137-163, line 147 specifically for grep pattern) ensured the new code matched established conventions exactly.
+- **Explicit consumer contracts**: Plan specified exact variable names (NEEDS_POSTGRES, NEEDS_MYSQL, etc.) that Phase 2/3 will use, preventing naming mismatches across phases.
+- **Acceptable false positives documented**: Plan explicitly stated that detecting commented-out gems is acceptable (over-provision vs. fail). This preempts reviewer nitpicks about edge cases.
+
+### What to avoid
+- **Branch naming with dots**: Git does not allow branch names starting with a dot. The plan specified `feature/.claude-53k-service-detection` but git rejected it. Use `feature/claude-53k-service-detection` pattern instead.
+
+### Process improvements
+- **Planner checklist addition**: When specifying branch names, avoid leading dots in any path segment. Git has restrictions on special characters in branch names.
+- **Multi-phase features benefit from explicit interface contracts**: For features spanning multiple tasks (Phase 1 detection, Phase 2 docker-compose, Phase 3 k8s), define the exact variable/flag names in Phase 1 plan so later phases can reference them without ambiguity.
