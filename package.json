@@ -1,0 +1,42 @@
+{
+  "name": "claude-golem",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Claude Code workflow orchestration and remote execution environment",
+  "scripts": {
+    "release": "release-it",
+    "release:patch": "release-it patch",
+    "release:minor": "release-it minor",
+    "release:major": "release-it major"
+  },
+  "devDependencies": {
+    "release-it": "^17.0.0"
+  },
+  "release-it": {
+    "git": {
+      "commitMessage": "chore: Release v${version}",
+      "tagName": "v${version}",
+      "tagAnnotation": "Release v${version}",
+      "requireCleanWorkingDir": true,
+      "requireBranch": "main",
+      "requireUpstream": true,
+      "push": true,
+      "pushArgs": ["--follow-tags"]
+    },
+    "github": {
+      "release": true,
+      "releaseName": "v${version}",
+      "autoGenerate": {
+        "enabled": true
+      }
+    },
+    "npm": {
+      "publish": false
+    },
+    "hooks": {
+      "before:init": ["git pull origin main"],
+      "after:bump": ["echo 'Version bumped to ${version}'"],
+      "after:git:release": ["echo 'Docker image will be built by CI at landovsky/claude-sandbox:${version}'"]
+    }
+  }
+}
