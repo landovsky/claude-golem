@@ -312,14 +312,34 @@ This sandbox is designed to work with the multi-agent workflow system:
 
 ## Customization
 
-### Change Ruby Version
+### Ruby Version Management
 
-Edit `docker-compose.yml`:
-```yaml
-build:
-  args:
-    RUBY_VERSION: "3.3.0"  # Change this
+The sandbox automatically detects the Ruby version from your project's `.ruby-version` file and uses the appropriate Docker image.
+
+**Supported versions:**
+- Ruby 3.2 (3.2.6)
+- Ruby 3.3 (3.3.6)
+- Ruby 3.4 (3.4.7)
+
+**Automatic detection:**
+1. The launcher checks for `.ruby-version` in your repository
+2. Extracts the major.minor version (e.g., `3.3.1` → `3.3`)
+3. Selects the matching image tag: `claude-sandbox:ruby-3.3`
+4. If no `.ruby-version` exists, uses the default (Ruby 3.4)
+
+**Manual override:**
+```bash
+# Force a specific Ruby version
+export IMAGE_TAG=ruby-3.2
+bin/claude-sandbox local "work on task 123"
 ```
+
+**Adding new Ruby versions:**
+1. Edit `ruby-versions.yaml` to add the new version
+2. Rebuild images: `bin/claude-sandbox build`
+3. All versions are built automatically with tags like `ruby-X.Y`
+
+See [docs/RUBY-VERSIONS.md](docs/RUBY-VERSIONS.md) for details.
 
 ### Add System Dependencies
 
