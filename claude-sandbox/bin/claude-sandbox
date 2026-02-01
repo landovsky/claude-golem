@@ -266,6 +266,24 @@ cmd_local() {
   # Default to latest if no IMAGE_TAG was set
   IMAGE_TAG="${IMAGE_TAG:-latest}"
 
+  # Detect required services before starting compose
+  COMPOSE_PROFILES="claude"  # Always start claude service
+  if [ -x "$SANDBOX_DIR/bin/detect-services.sh" ]; then
+    DETECTED_PROFILES=$("$SANDBOX_DIR/bin/detect-services.sh" "$REPO_URL" 2>/dev/null || echo "")
+    if [ -n "$DETECTED_PROFILES" ]; then
+      COMPOSE_PROFILES="$DETECTED_PROFILES"
+      log "Detected service requirements: $COMPOSE_PROFILES"
+    else
+      # Detection failed, use safe defaults (all services)
+      COMPOSE_PROFILES="claude with-postgres with-redis"
+      warn "Service detection failed, starting all services"
+    fi
+  else
+    # Script missing, use safe defaults
+    COMPOSE_PROFILES="claude with-postgres with-redis"
+    warn "Detection script not found, starting all services"
+  fi
+
   log "Starting local sandbox..."
   log "Task: $task"
   log "Image: claude-sandbox:${IMAGE_TAG}"
@@ -279,8 +297,14 @@ cmd_local() {
     exit 1
   fi
 
+  # Build profile flags
+  PROFILE_FLAGS=""
+  for profile in $COMPOSE_PROFILES; do
+    PROFILE_FLAGS="$PROFILE_FLAGS --profile $profile"
+  done
+
   # Run with task, passing IMAGE_TAG to docker-compose
-  IMAGE_TAG="$IMAGE_TAG" docker compose run -it --rm \
+  IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS run -it --rm \
     -e TASK="$task" \
     -e GITHUB_TOKEN="$GITHUB_TOKEN" \
     -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
