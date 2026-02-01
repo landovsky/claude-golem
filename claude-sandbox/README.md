@@ -2,6 +2,10 @@
 
 Run Claude Code autonomously in an isolated Docker environment with full permissions (`--dangerously-skip-permissions`).
 
+## Current Scope: Rails Ecosystem
+
+This sandbox is currently optimized for **Ruby on Rails projects**. It includes PostgreSQL (with PostGIS), Redis, Chrome for system tests, and supports multiple Ruby versions. After battle testing in production Rails environments, the architecture can be revisioned to support other ecosystems (Node.js, Python, Go, etc.) through similar patterns.
+
 ## Why?
 
 When you want Claude to work on tasks without supervision:
@@ -202,10 +206,10 @@ This means:
 
 ## What's Included
 
-The sandbox container includes:
-- Ruby 3.4.x (matches project)
-- Node.js 20 LTS
-- PostgreSQL 16 client
+The sandbox container includes (Rails-optimized stack):
+- Ruby (3.2, 3.3, or 3.4 - auto-detected from project)
+- Node.js 22 LTS
+- PostgreSQL 16 client (with PostGIS support)
 - Redis 7 client
 - Google Chrome (for Capybara system tests)
 - beads (`bd`) for task tracking
@@ -312,14 +316,34 @@ This sandbox is designed to work with the multi-agent workflow system:
 
 ## Customization
 
-### Change Ruby Version
+### Ruby Version Management
 
-Edit `docker-compose.yml`:
-```yaml
-build:
-  args:
-    RUBY_VERSION: "3.3.0"  # Change this
+The sandbox automatically detects the Ruby version from your project's `.ruby-version` file and uses the appropriate Docker image.
+
+**Supported versions:**
+- Ruby 3.2 (3.2.6)
+- Ruby 3.3 (3.3.6)
+- Ruby 3.4 (3.4.7)
+
+**Automatic detection:**
+1. The launcher checks for `.ruby-version` in your repository
+2. Extracts the major.minor version (e.g., `3.3.1` → `3.3`)
+3. Selects the matching image tag: `claude-sandbox:ruby-3.3`
+4. If no `.ruby-version` exists, uses the default (Ruby 3.4)
+
+**Manual override:**
+```bash
+# Force a specific Ruby version
+export IMAGE_TAG=ruby-3.2
+bin/claude-sandbox local "work on task 123"
 ```
+
+**Adding new Ruby versions:**
+1. Edit `ruby-versions.yaml` to add the new version
+2. Rebuild images: `bin/claude-sandbox build`
+3. All versions are built automatically with tags like `ruby-X.Y`
+
+See [docs/RUBY-VERSIONS.md](docs/RUBY-VERSIONS.md) for details.
 
 ### Add System Dependencies
 
