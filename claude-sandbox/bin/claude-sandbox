@@ -318,7 +318,8 @@ cmd_remote() {
   fi
 
   # Generate unique job name with random suffix to prevent collisions
-  local random_suffix=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
+  # Use LC_ALL=C to avoid locale issues with tr on macOS
+  local random_suffix=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 4)
   local job_name="claude-sandbox-$(date +%Y%m%d-%H%M%S)-${random_suffix}"
 
   # Auto-detect CLAUDE_IMAGE from git remote origin owner if not set
