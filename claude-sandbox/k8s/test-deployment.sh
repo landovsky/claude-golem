@@ -19,6 +19,7 @@ SANDBOX_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Extract repository owner from git remote origin
 # Handles both SSH (git@github.com:owner/repo.git) and HTTPS (https://github.com/owner/repo.git)
+# Returns empty string for non-GitHub remotes (GitLab, Bitbucket, etc.)
 get_repo_owner() {
   local git_dir="${1:-.}"
   local remote_url=$(git -C "$git_dir" remote get-url origin 2>/dev/null)
@@ -30,7 +31,18 @@ get_repo_owner() {
   # Extract owner from both formats
   # SSH: git@github.com:owner/repo.git -> owner
   # HTTPS: https://github.com/owner/repo.git -> owner
-  echo "$remote_url" | sed -E 's|^git@github\.com:([^/]+)/.*|\1|; s|^https://github\.com/([^/]+)/.*|\1|'
+  local owner=$(echo "$remote_url" | sed -E 's|^git@github\.com:([^/]+)/.*|\1|; s|^https://github\.com/([^/]+)/.*|\1|')
+
+  # Validate: owner should be alphanumeric with dashes/underscores only
+  # If URL didn't match GitHub patterns, sed passes it through unchanged
+  # which would contain invalid chars like : / @
+  if [[ "$owner" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "$owner"
+  else
+    # Non-GitHub remote or invalid format, return empty for fallback
+    echo ""
+    return 1
+  fi
 }
 
 # Check prerequisites
