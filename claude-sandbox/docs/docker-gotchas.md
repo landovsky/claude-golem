@@ -386,6 +386,19 @@ For Intel Macs, use `platform: linux/amd64`.
 
 ---
 
+## 15. Image Naming for Forked Repositories
+
+**Problem:** Every fork had to manually search-and-replace `landovsky` with their Docker Hub username across multiple files (GitHub Actions, shell scripts, docs).
+
+**Solution:** Parameterize based on repository owner:
+- GitHub Actions: Use `${{ github.repository_owner }}`
+- Shell scripts: Extract from `git remote get-url origin`
+- Environment variable: `CLAUDE_IMAGE` overrides everything
+
+**Lesson:** Use platform-provided context (GitHub variables, git remotes) rather than hardcoding usernames. Makes forks work out-of-the-box.
+
+---
+
 ## Summary of Key Patterns
 
 ### Build-Time File Injection

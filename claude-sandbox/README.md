@@ -84,8 +84,10 @@ kubectl create secret generic claude-sandbox-secrets \
   --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
 
 # Images are automatically built via CI/CD on release tags
+# Image name uses repository owner (auto-detects from fork)
 # Use the latest stable image from Docker Hub:
 # landovsky/claude-sandbox:latest (or specific version like :1.0.0)
+# For forks: yourname/claude-sandbox:latest
 
 # Run remotely - REPO_URL auto-detected from current directory
 cd ~/your-project
@@ -107,7 +109,7 @@ Docker images are automatically built and pushed to Docker Hub when a semantic v
 ### How It Works
 
 1. **Tag creation triggers build**: When you push a tag matching `v*.*.*` (e.g., `v1.0.0`, `v2.3.4`), GitHub Actions automatically:
-   - Builds the `landovsky/claude-sandbox` image
+   - Builds the image using `${{ github.repository_owner }}/claude-sandbox` (adapts to forks)
    - Pushes with both version tag (e.g., `1.0.0`) and `latest`
    - Currently builds for amd64 only (arm64 requires Dockerfile changes for SOPS/age)
 
@@ -141,9 +143,9 @@ For local testing or when you need to bake in custom agents:
 # Build with your local ~/.claude/agents
 bin/claude-sandbox build
 
-# Push manually (if needed)
-docker tag claude-sandbox:latest landovsky/claude-sandbox:latest
-docker push landovsky/claude-sandbox:latest
+# Push manually (if needed) - replace 'yourusername' with your Docker Hub username
+docker tag claude-sandbox:latest yourusername/claude-sandbox:latest
+docker push yourusername/claude-sandbox:latest
 ```
 
 **Note**: CI builds use minimal/empty agent configuration. Local builds via `bin/claude-sandbox build` copy your `~/.claude/agents`, `~/.claude/artifacts`, and `~/.claude/commands` into the image.
@@ -207,7 +209,7 @@ claude-sandbox local "work on feature X"
 | `DATABASE_NAME` | `sandbox_development` | PostgreSQL database name |
 | `TELEGRAM_BOT_TOKEN` | - | Telegram bot token for notifications |
 | `TELEGRAM_CHAT_ID` | - | Telegram chat ID to receive notifications |
-| `CLAUDE_IMAGE` | `landovsky/claude-sandbox:latest` | Docker image for remote runs |
+| `CLAUDE_IMAGE` | Auto-detected from git remote or `landovsky/claude-sandbox:latest` | Docker image for remote runs (auto-detects `owner/claude-sandbox:latest` from repository context) |
 | `CLAUDE_REGISTRY` | - | Registry for pushing images |
 
 ### Getting OAuth Token
@@ -219,6 +221,30 @@ claude setup-token
 # Complete browser login
 # Save the sk-ant-oat01-... token securely
 ```
+
+## Image Naming for Forks
+
+Docker image names automatically adapt to your fork:
+
+**GitHub Actions (CI/CD):**
+- Uses `${{ github.repository_owner }}/claude-sandbox:version`
+- If you fork `landovsky/claude-golem` to `yourname/claude-golem`
+- Images push to `yourname/claude-sandbox:latest`
+
+**Local/K8s Scripts:**
+- Auto-detect owner from `git remote get-url origin`
+- Constructs `owner/claude-sandbox:latest`
+- Falls back to `landovsky/claude-sandbox:latest` if detection fails
+
+**Override:**
+```bash
+export CLAUDE_IMAGE="myorg/custom-image:v2"
+```
+
+**Required Setup for Forks:**
+1. Configure GitHub secrets: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
+2. Ensure your Docker Hub account has a repository named `claude-sandbox`
+3. No code changes needed!
 
 ## Commands
 

@@ -15,6 +15,23 @@ error() { echo -e "${RED}[test]${NC} $1"; }
 info() { echo -e "${BLUE}[test]${NC} $1"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SANDBOX_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Extract repository owner from git remote origin
+# Handles both SSH (git@github.com:owner/repo.git) and HTTPS (https://github.com/owner/repo.git)
+get_repo_owner() {
+  local git_dir="${1:-.}"
+  local remote_url=$(git -C "$git_dir" remote get-url origin 2>/dev/null)
+  if [ -z "$remote_url" ]; then
+    echo ""
+    return 1
+  fi
+
+  # Extract owner from both formats
+  # SSH: git@github.com:owner/repo.git -> owner
+  # HTTPS: https://github.com/owner/repo.git -> owner
+  echo "$remote_url" | sed -E 's|^git@github\.com:([^/]+)/.*|\1|; s|^https://github\.com/([^/]+)/.*|\1|'
+}
 
 # Check prerequisites
 check_prereqs() {
@@ -64,7 +81,19 @@ test_basic_job() {
 
   export TASK="$task"
   export JOB_NAME="$job_name"
-  export CLAUDE_IMAGE="${CLAUDE_IMAGE:-landovsky/claude-sandbox:latest}"
+
+  # Auto-detect CLAUDE_IMAGE from git remote origin owner if not set
+  if [ -z "$CLAUDE_IMAGE" ]; then
+    local owner=$(get_repo_owner "$SANDBOX_DIR")
+    if [ -n "$owner" ]; then
+      export CLAUDE_IMAGE="${owner}/claude-sandbox:latest"
+      log "Auto-detected CLAUDE_IMAGE: $CLAUDE_IMAGE"
+    else
+      # Fallback to original hardcoded value if can't detect
+      export CLAUDE_IMAGE="landovsky/claude-sandbox:latest"
+      warn "Could not detect repository owner, using default: $CLAUDE_IMAGE"
+    fi
+  fi
 
   # Apply job
   envsubst < "$SCRIPT_DIR/job-template-test.yaml" | kubectl apply -f -
