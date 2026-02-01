@@ -92,3 +92,19 @@
 ### Process improvements
 - **Planner: verify file path correctness for documentation updates**: The plan listed updating `/Users/tomas/.claude/README.md` when the correct location was `claude-sandbox/README.md`. File paths in "Documentation to update" should be verified against actual file structure.
 - **Multi-component features need timing analysis**: When a feature involves multiple components (pre-launch script, docker-compose, entrypoint), the plan should explicitly diagram the timing relationship (what runs when, what data is available at each point).
+
+## 2026-02-01 - .claude-ogp - K8s dynamic sidecar generation (Phase 3)
+
+### What worked well
+- **Bash heredoc YAML generation**: The `generate_k8s_job_yaml()` function uses bash heredocs with conditional blocks to generate YAML dynamically. This approach maintains readability while enabling conditional sidecar inclusion. See `/Users/tomas/.claude/claude-sandbox/bin/claude-sandbox` lines 319-458.
+- **Consistent interface reuse**: Phase 3 reuses the exact same `detect-services.sh` script and profile names ("with-postgres", "with-redis") established in Phase 2. No new contracts needed - just consuming existing ones.
+- **Comprehensive testing approach in TESTING.md**: The documentation includes specific kubectl commands to verify container counts and env vars for each scenario, making validation repeatable.
+- **Reference template preservation**: Keeping `job-template.yaml` as "REFERENCE ONLY" with clear note (lines 1-9) helps future maintainers understand the full structure without wading through heredoc conditionals.
+
+### What to avoid
+- **YAML injection via envsubst**: When using `envsubst` for user-provided values (like TASK), special characters (quotes, newlines) can break YAML syntax. The pattern `value: "${TASK}"` is vulnerable. This existed in the original template but the dynamic generation replicates it. Future work should escape values with a helper function or use base64 encoding.
+- **Pre-existing technical debt replication**: The implementer correctly replicated existing patterns, but this also replicated existing vulnerabilities. Reviewers should flag pre-existing issues even when not fixing them, to track technical debt.
+
+### Process improvements
+- **Security checklist for template generation**: When generating configuration files (YAML, JSON) with user input, the plan should include a "string escaping" consideration. Questions to ask: What characters could break the format? Are values properly quoted/escaped?
+- **Multi-phase completion tracking**: TESTING.md still had a "To Do" section referencing Phase 1/2 items. When completing later phases, clean up earlier phase tracking items to maintain documentation accuracy.
