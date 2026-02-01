@@ -64,7 +64,7 @@ spec:
         - name: REPO_BRANCH
           value: "${REPO_BRANCH}"
         - name: DATABASE_URL
-          value: "postgres://claude:claude@localhost:5432/hriste_development"
+          value: "postgres://claude:claude@localhost:5432/${DATABASE_NAME:-sandbox_development}"
         - name: REDIS_URL
           value: "redis://localhost:6379"
         - name: RAILS_ENV
@@ -100,7 +100,7 @@ spec:
         - name: POSTGRES_PASSWORD
           value: claude
         - name: POSTGRES_DB
-          value: hriste_development
+          value: ${DATABASE_NAME:-sandbox_development}
         volumeMounts:
         - name: workspace
           mountPath: /var/lib/postgresql/data
