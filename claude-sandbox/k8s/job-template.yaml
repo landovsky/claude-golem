@@ -1,7 +1,11 @@
-# Claude Sandbox - Kubernetes Job Template
+# Claude Sandbox - Kubernetes Job Template (REFERENCE ONLY)
 #
-# This template is used by `bin/claude-sandbox remote` to create jobs.
-# Variables like ${TASK} are substituted by envsubst before applying.
+# NOTE: As of Phase 3, cmd_remote() generates YAML dynamically with conditional sidecars
+# instead of using this static template. This file is kept as a reference for the full
+# job structure with all sidecars included.
+#
+# The dynamic generation conditionally includes postgres-sidecar and redis-sidecar
+# based on service detection, reducing resource waste for jobs that don't need them.
 #
 # Prerequisites:
 #   1. Create the secrets:

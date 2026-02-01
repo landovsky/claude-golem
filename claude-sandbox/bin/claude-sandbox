@@ -316,6 +316,147 @@ cmd_local() {
     claude
 }
 
+# Generate K8s job YAML with conditional sidecars
+# Args: needs_postgres (true/false), needs_redis (true/false)
+generate_k8s_job_yaml() {
+  local needs_postgres="$1"
+  local needs_redis="$2"
+
+  # Build env vars section for claude container
+  local claude_env_vars='        - name: TASK
+          value: "${TASK}"
+        - name: REPO_URL
+          value: "${REPO_URL}"
+        - name: REPO_BRANCH
+          value: "${REPO_BRANCH}"'
+
+  # Add DATABASE_URL only if postgres is needed
+  if [ "$needs_postgres" = "true" ]; then
+    claude_env_vars="${claude_env_vars}
+        - name: DATABASE_URL
+          value: \"postgres://claude:claude@localhost:5432/\${DATABASE_NAME}\""
+  fi
+
+  # Add REDIS_URL only if redis is needed
+  if [ "$needs_redis" = "true" ]; then
+    claude_env_vars="${claude_env_vars}
+        - name: REDIS_URL
+          value: \"redis://localhost:6379\""
+  fi
+
+  # Always include these env vars
+  claude_env_vars="${claude_env_vars}
+        - name: RAILS_ENV
+          value: \"development\"
+        - name: CHROME_BIN
+          value: \"/usr/bin/chromium-browser\""
+
+  # Build sidecars section
+  local sidecars=""
+
+  if [ "$needs_postgres" = "true" ]; then
+    sidecars="${sidecars}
+      # Sidecar: Postgres
+      - name: postgres-sidecar
+        image: postgres:16-alpine
+        env:
+        - name: POSTGRES_USER
+          value: claude
+        - name: POSTGRES_PASSWORD
+          value: claude
+        - name: POSTGRES_DB
+          value: \${DATABASE_NAME}
+        volumeMounts:
+        - name: workspace
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+        resources:
+          requests:
+            memory: \"256Mi\"
+            cpu: \"100m\"
+          limits:
+            memory: \"512Mi\"
+            cpu: \"500m\""
+  fi
+
+  if [ "$needs_redis" = "true" ]; then
+    sidecars="${sidecars}
+      # Sidecar: Redis
+      - name: redis-sidecar
+        image: redis:7-alpine
+        resources:
+          requests:
+            memory: \"64Mi\"
+            cpu: \"50m\"
+          limits:
+            memory: \"128Mi\"
+            cpu: \"200m\""
+  fi
+
+  # Generate complete YAML
+  cat <<EOF
+# Claude Sandbox - Kubernetes Job (dynamically generated)
+# Generated with sidecars: postgres=$needs_postgres redis=$needs_redis
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: \${JOB_NAME}
+  labels:
+    app: claude-sandbox
+    managed-by: claude-sandbox-cli
+spec:
+  # Auto-cleanup after 1 hour
+  ttlSecondsAfterFinished: 3600
+  # Don't retry on failure
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: claude-sandbox
+    spec:
+      restartPolicy: Never
+
+      # Shared memory for Chrome
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 2Gi
+      - name: workspace
+        emptyDir: {}
+      - name: age-key
+        secret:
+          secretName: age-key
+          optional: true
+
+      containers:
+      - name: claude
+        image: \${CLAUDE_IMAGE}
+        env:
+${claude_env_vars}
+        envFrom:
+        - secretRef:
+            name: claude-sandbox-secrets
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+        - name: workspace
+          mountPath: /workspace
+          subPath: code
+        - name: age-key
+          mountPath: /secrets
+          readOnly: true
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+${sidecars}
+EOF
+}
+
 cmd_remote() {
   local task="$*"
   if [ -z "$task" ]; then
@@ -328,6 +469,34 @@ cmd_remote() {
 
   # Auto-detect Ruby version if not manually set
   auto_detect_ruby_version || exit 1
+
+  # Detect required services before job creation
+  local needs_postgres="false"
+  local needs_redis="false"
+
+  if [ -x "$SANDBOX_DIR/bin/detect-services.sh" ]; then
+    DETECTED_PROFILES=$("$SANDBOX_DIR/bin/detect-services.sh" "$REPO_URL" 2>/dev/null || echo "")
+    if [ -n "$DETECTED_PROFILES" ]; then
+      # Parse profiles to set flags
+      if echo "$DETECTED_PROFILES" | grep -q "with-postgres"; then
+        needs_postgres="true"
+      fi
+      if echo "$DETECTED_PROFILES" | grep -q "with-redis"; then
+        needs_redis="true"
+      fi
+      log "Detected service requirements: postgres=$needs_postgres redis=$needs_redis"
+    else
+      # Detection failed, use safe defaults (all services)
+      needs_postgres="true"
+      needs_redis="true"
+      warn "Service detection failed, including all sidecars"
+    fi
+  else
+    # Script missing, use safe defaults
+    needs_postgres="true"
+    needs_redis="true"
+    warn "Detection script not found, including all sidecars"
+  fi
 
   # Check kubectl is available
   if ! command -v kubectl &> /dev/null; then
@@ -378,9 +547,10 @@ cmd_remote() {
   export CLAUDE_IMAGE="$full_image"
   export REPO_URL="$REPO_URL"
   export REPO_BRANCH="${REPO_BRANCH:-main}"
+  export DATABASE_NAME="${DATABASE_NAME:-sandbox_development}"
 
-  # Apply job
-  envsubst < "$SANDBOX_DIR/k8s/job-template.yaml" | kubectl apply -f -
+  # Generate and apply job
+  generate_k8s_job_yaml "$needs_postgres" "$needs_redis" | envsubst | kubectl apply -f -
 
   log "Job created successfully"
   log "Watch logs with: kubectl logs -f job/$job_name"
