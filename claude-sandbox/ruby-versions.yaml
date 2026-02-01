@@ -1,0 +1,14 @@
+# Ruby versions supported by claude-sandbox
+#
+# Each entry maps a major.minor version (used in image tags) to a specific patch version.
+# The default version is used when no .ruby-version file is found in the project.
+#
+# Image tags are created as: claude-sandbox:ruby-X.Y
+# Example: claude-sandbox:ruby-3.4 contains Ruby 3.4.7
+
+versions:
+  "3.2": "3.2.6"
+  "3.3": "3.3.6"
+  "3.4": "3.4.7"
+
+default: "3.4"
