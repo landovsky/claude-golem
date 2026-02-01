@@ -30,3 +30,18 @@
 - **Analyst checklist addition**: When specifying CI/CD for Docker images, verify all Dockerfile RUN commands that download binaries support the target architectures.
 - **Security baseline for GitHub Actions**: Always include explicit `permissions:` block with minimal required permissions. Default permissions are too broad.
 - When adding new workflow files, run a quick syntax check before committing (e.g., use actionlint or YAML validator).
+
+## 2026-02-01 - .claude-de5 - Parameterize Docker image for forks
+
+### What worked well
+- Using `github.repository_owner` in GitHub Actions is the right approach - no custom parsing needed, works for all forks automatically.
+- Following the existing `auto_detect_repo` pattern in the codebase made the implementation consistent and predictable.
+- Documenting the fallback chain (explicit override > auto-detect > hardcoded default) makes debugging easier.
+
+### What to avoid
+- **Sed pattern pass-through on non-match**: When using sed to extract values from URLs, be aware that non-matching patterns pass through unchanged. The initial implementation would create invalid Docker image names like `git@gitlab.com:user/repo.git/claude-sandbox:latest` for non-GitHub remotes.
+- **Fix**: Always validate extracted values match expected format before using them. In this case, checking that extracted owner matches `^[a-zA-Z0-9_-]+$` catches invalid pass-through.
+
+### Process improvements
+- **Planner checklist addition**: When parsing URLs with regex, list what happens when patterns don't match. Include non-matching cases in the testing approach.
+- **Reviewer testing**: For URL/string parsing functions, always test with inputs that are similar but not exact matches to the expected pattern (e.g., GitLab URL when expecting GitHub).
