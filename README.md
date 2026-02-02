@@ -173,6 +173,60 @@ Install the `bd` CLI for task tracking:
 curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
 ```
 
+## Artifacts System
+
+Project-specific guidance and accumulated learnings live in `artifacts/` directory. This provides a knowledge base that agents consult and update during development.
+
+### Structure
+
+```
+artifacts/
+  registry.json                  # Lists available artifacts
+  lessons-learned.md            # Accumulated learnings from past work
+  workflow-design/              # Workflow documentation
+    WORKFLOW-DESIGN-RATIONALE.md
+    WORKFLOW.md
+```
+
+### Registry Format
+
+Artifacts are registered in `artifacts/registry.json`:
+
+```json
+[
+  {
+    "filename": "lessons-learned.md",
+    "description": "Accumulated learnings from past work to avoid repeated mistakes",
+    "usage": "always"
+  },
+  {
+    "filename": "ui-style-guide.md",
+    "description": "Visual design standards for UI components",
+    "usage": "decide"
+  }
+]
+```
+
+**Usage values:**
+- `always` - Agent must consult this artifact
+- `decide` - Agent determines relevance based on task
+
+### How Agents Use Artifacts
+
+1. **Master** reads registry, passes relevant artifacts to agents
+2. **Analyst** curates: reads, extracts relevant bits, flags if artifact needs updating
+3. **Planner** lists which artifacts implementer must follow (and reads lessons-learned before every plan)
+4. **Implementer** follows artifact guidance, updates artifacts if spec requires
+5. **Reviewer** verifies artifact compliance and updates, writes to lessons-learned
+
+### The Learning Loop
+
+The reviewer captures lessons from completed work in `artifacts/lessons-learned.md`. The planner reads this file before every plan to avoid repeated mistakes. This creates a closed feedback loop where past experience directly improves future work.
+
+### Creating Custom Artifacts
+
+Add project-specific guidance (coding standards, architecture decisions, business processes) as markdown files in `artifacts/` and register them in `registry.json`. Agents will automatically discover and use them.
+
 ## Files
 
 ```
@@ -192,7 +246,9 @@ curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/instal
 │   ├── bin/           # CLI tools
 │   └── k8s/           # Kubernetes templates
 └── artifacts/
-    └── workflow-design/
+    ├── registry.json           # Artifact registry
+    ├── lessons-learned.md      # Learning loop
+    └── workflow-design/        # Workflow docs
         └── WORKFLOW-DESIGN-RATIONALE.md
 ```
 
