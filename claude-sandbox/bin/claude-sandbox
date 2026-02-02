@@ -432,6 +432,7 @@ spec:
       containers:
       - name: claude
         image: \${CLAUDE_IMAGE}
+        imagePullPolicy: Always
         env:
 ${claude_env_vars}
         envFrom:
