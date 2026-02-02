@@ -60,6 +60,11 @@ bin/claude-sandbox local "fix the authentication bug in login controller"
 
 ### Remote (Kubernetes/k3s)
 
+**Prerequisites:**
+- Existing Kubernetes cluster (k3s, EKS, GKE, AKS, etc.)
+- kubectl configured to access your cluster
+- See [docs/kubernetes-cluster-setup-guide.md](docs/kubernetes-cluster-setup-guide.md) for detailed cluster configuration
+
 **Features:**
 - ✅ Basic job execution (clone repo, run Claude)
 - ✅ Dynamic sidecar provisioning (only includes required services)
@@ -76,7 +81,7 @@ K8s jobs now use the same service detection as local Docker Compose. Only requir
 - Falls back to all sidecars if detection fails (safe default)
 - Same git archive limitation as local (GitHub.com HTTPS not supported)
 
-See [k8s/TESTING.md](k8s/TESTING.md) for testing details.
+See [k8s/TESTING.md](k8s/TESTING.md) for testing details and [docs/kubernetes-cluster-setup-guide.md](docs/kubernetes-cluster-setup-guide.md) for cluster setup.
 
 ```bash
 # First, create secrets in your cluster
@@ -105,6 +110,8 @@ bin/claude-sandbox remote "implement user profile page"
 # Watch logs
 bin/claude-sandbox logs
 ```
+
+**For detailed cluster setup instructions**, see [docs/kubernetes-cluster-setup-guide.md](docs/kubernetes-cluster-setup-guide.md).
 
 ## CI/CD - Automated Image Builds
 
@@ -401,16 +408,24 @@ git commit -m "Add encrypted secrets"
 ## Directory Structure
 
 ```
-docker/claude-sandbox/
+claude-sandbox/
 ├── Dockerfile              # Dev environment image
 ├── docker-compose.yml      # Local orchestration
 ├── entrypoint.sh           # Clone, setup, run Claude
 ├── safe-git                # Git wrapper (force-push protection)
 ├── notify-telegram.sh      # Telegram notification script
 ├── README.md               # This file
+├── bin/
+│   └── claude-sandbox      # Main CLI script
+├── docs/
+│   ├── kubernetes-cluster-setup-guide.md  # K8s cluster configuration guide
+│   ├── SOPS-SETUP.md                      # Encrypted secrets setup
+│   ├── RUBY-VERSIONS.md                   # Ruby version management
+│   ├── ENV-FILES.md                       # Environment file documentation
+│   └── docker-gotchas.md                  # Docker troubleshooting
 └── k8s/
-    ├── job-template.yaml   # K8s Job template
-    └── secrets.yaml.example # Secrets template
+    ├── job-template.yaml   # K8s Job template (reference)
+    └── TESTING.md          # K8s testing procedures
 ```
 
 ## Workflow Integration
