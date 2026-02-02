@@ -6,11 +6,11 @@ Quick reference for managing environment variables in claude-sandbox projects.
 
 | File | Purpose | Encrypted | Commit to Git | Setup Required |
 |------|---------|-----------|---------------|----------------|
-| `.env.claude` | Public config | No | ✅ Yes | None |
+| `.env.claude-sandbox` | Public config | No | ✅ Yes | None |
 | `.env.sops` | Secrets | Yes | ✅ Yes | SOPS + age key |
 | `.env.local` | Local overrides | No | ❌ No | None |
 
-## .env.claude
+## .env.claude-sandbox
 
 **Purpose:** Non-sensitive project configuration
 
@@ -23,7 +23,7 @@ Quick reference for managing environment variables in claude-sandbox projects.
 
 **Example:**
 ```bash
-# .env.claude
+# .env.claude-sandbox
 DATABASE_NAME=myapp_development
 RAILS_ENV=development
 APP_HOST=localhost:3000
@@ -82,7 +82,7 @@ Variables are loaded in this order (later overrides earlier):
 ```
 1. K8s secrets (shared credentials)
    ↓
-2. .env.claude (public project config)
+2. .env.claude-sandbox (public project config)
    ↓
 3. .env.sops (encrypted secrets)
    ↓
@@ -94,21 +94,21 @@ Variables are loaded in this order (later overrides earlier):
 ### Simple Project (No Secrets)
 
 ```bash
-# Just use .env.claude
-cat > .env.claude << 'EOF'
+# Just use .env.claude-sandbox
+cat > .env.claude-sandbox << 'EOF'
 DATABASE_NAME=myapp_development
 RAILS_ENV=development
 EOF
 
-git add .env.claude
+git add .env.claude-sandbox
 git commit -m "Add project config"
 ```
 
 ### Project with Secrets
 
 ```bash
-# 1. Public config in .env.claude
-cat > .env.claude << 'EOF'
+# 1. Public config in .env.claude-sandbox
+cat > .env.claude-sandbox << 'EOF'
 DATABASE_NAME=myapp_production
 RAILS_ENV=production
 EOF
@@ -118,7 +118,7 @@ sops .env.sops
 # Add: DATABASE_PASSWORD=secret123
 
 # 3. Commit both
-git add .env.claude .env.sops .sops.yaml
+git add .env.claude-sandbox .env.sops .sops.yaml
 git commit -m "Add config and secrets"
 ```
 
@@ -133,7 +133,7 @@ git commit -m "Add config and secrets"
 .env.sops.dec*  # SOPS temporary decrypted files
 
 # But DO commit these:
-# .env.claude     (public config)
+# .env.claude-sandbox     (public config)
 # .env.sops       (encrypted secrets)
 # .sops.yaml      (SOPS config)
 ```
@@ -141,14 +141,14 @@ git commit -m "Add config and secrets"
 ## Best Practices
 
 ### ✅ DO:
-- Use `.env.claude` for all non-sensitive config
+- Use `.env.claude-sandbox` for all non-sensitive config
 - Use `.env.sops` for secrets, API keys, passwords
-- Commit both `.env.claude` and `.env.sops` to git
+- Commit both `.env.claude-sandbox` and `.env.sops` to git
 - Document what variables are needed in README
 - Use meaningful variable names
 
 ### ❌ DON'T:
-- Put secrets in `.env.claude` (use `.env.sops`)
+- Put secrets in `.env.claude-sandbox` (use `.env.sops`)
 - Commit `.env.local` files
 - Commit `.env.sops.dec_*` temporary files
 - Use production secrets in development `.env.sops`
@@ -159,7 +159,7 @@ git commit -m "Add config and secrets"
 ### Rails App
 
 ```bash
-# .env.claude
+# .env.claude-sandbox
 DATABASE_NAME=myapp_production
 RAILS_ENV=production
 RAILS_LOG_LEVEL=info
@@ -174,7 +174,7 @@ RAILS_MASTER_KEY=...
 ### Node.js App
 
 ```bash
-# .env.claude
+# .env.claude-sandbox
 NODE_ENV=production
 APP_PORT=3000
 LOG_LEVEL=info
@@ -190,7 +190,7 @@ DATABASE_URL=postgres://user:password@localhost/db
 You can use multiple SOPS files:
 
 ```bash
-.env.claude              # Shared public config
+.env.claude-sandbox              # Shared public config
 .env.development.sops    # Dev secrets
 .env.staging.sops        # Staging secrets
 .env.production.sops     # Production secrets
@@ -212,15 +212,15 @@ kubectl logs <pod-name> | grep "Environment Configuration"
 You should see:
 ```
 ▶ Environment Configuration
-[sandbox] Loading .env.claude...
-[sandbox] ✓ Environment variables loaded from .env.claude
+[sandbox] Loading .env.claude-sandbox...
+[sandbox] ✓ Environment variables loaded from .env.claude-sandbox
 [sandbox] Decrypting .env.sops with age key...
 [sandbox] ✓ Encrypted secrets loaded from .env.sops
 ```
 
 ### Variable precedence issues
 
-Remember the order: k8s secrets → .env.claude → .env.sops → job env vars
+Remember the order: k8s secrets → .env.claude-sandbox → .env.sops → job env vars
 
 To debug:
 ```bash
@@ -240,7 +240,7 @@ See [SOPS-SETUP.md#troubleshooting](SOPS-SETUP.md#troubleshooting)
 # Before: Hardcoded in code
 DATABASE_NAME = "myapp_production"
 
-# After: In .env.claude
+# After: In .env.claude-sandbox
 DATABASE_NAME=myapp_production
 
 # In code:
@@ -254,9 +254,9 @@ DATABASE_NAME = ENV["DATABASE_NAME"]
 kubectl create configmap myapp-config \
   --from-literal=DATABASE_NAME=myapp_prod
 
-# After: .env.claude in repo
-echo "DATABASE_NAME=myapp_prod" > .env.claude
-git add .env.claude
+# After: .env.claude-sandbox in repo
+echo "DATABASE_NAME=myapp_prod" > .env.claude-sandbox
+git add .env.claude-sandbox
 git commit -m "Migrate from ConfigMap"
 
 # Delete ConfigMap
@@ -270,9 +270,9 @@ kubectl delete configmap myapp-config
 kubectl create secret generic myapp-config \
   --from-literal=DATABASE_NAME=myapp_prod
 
-# After: .env.claude in repo
-echo "DATABASE_NAME=myapp_prod" > .env.claude
-git commit -m "Move public config to .env.claude"
+# After: .env.claude-sandbox in repo
+echo "DATABASE_NAME=myapp_prod" > .env.claude-sandbox
+git commit -m "Move public config to .env.claude-sandbox"
 
 # Keep real secrets in .env.sops
 ```
@@ -280,5 +280,5 @@ git commit -m "Move public config to .env.claude"
 ## See Also
 
 - [SOPS-SETUP.md](SOPS-SETUP.md) - Complete SOPS guide
-- [.env.claude.example](/.env.claude.example) - Example file
+- [.env.claude-sandbox.example](/.env.claude-sandbox.example) - Example file
 - [.env.sops.example](/.env.sops.example) - Example file

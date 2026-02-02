@@ -99,15 +99,15 @@ separator
 
 section "Environment Configuration"
 
-# Load plaintext environment variables from .env.claude if present
-if [ -f .env.claude ]; then
-  action "Loading .env.claude..."
+# Load plaintext environment variables from .env.claude-sandbox if present
+if [ -f .env.claude-sandbox ]; then
+  action "Loading .env.claude-sandbox..."
   set -a  # Automatically export all variables
-  source .env.claude
+  source .env.claude-sandbox
   set +a  # Turn off auto-export
-  success "Environment variables loaded from .env.claude"
+  success "Environment variables loaded from .env.claude-sandbox"
 else
-  info "No .env.claude file found"
+  info "No .env.claude-sandbox file found"
 fi
 
 # Load encrypted secrets from .env.sops if present
@@ -129,7 +129,7 @@ else
 fi
 
 # Summary
-if [ ! -f .env.claude ] && [ ! -f .env.sops ]; then
+if [ ! -f .env.claude-sandbox ] && [ ! -f .env.sops ]; then
   info "Using environment variables from k8s secrets only"
 fi
 separator
@@ -161,6 +161,78 @@ fi
 if [ "$HAS_RUBY" = false ] && [ "$HAS_NODE" = false ]; then
   info "Generic project (no Ruby or Node.js detected)"
 fi
+separator
+
+section "Service Detection"
+
+# Initialize all flags to false
+NEEDS_POSTGRES=false
+NEEDS_MYSQL=false
+NEEDS_SQLITE=false
+NEEDS_REDIS=false
+
+# Detect Postgres
+if [ -f "Gemfile" ] && grep -q "gem ['\"]pg['\"][,[:space:]]" Gemfile 2>/dev/null; then
+  NEEDS_POSTGRES=true
+fi
+if [ -f "package.json" ] && grep -q "\"pg\"" package.json 2>/dev/null; then
+  NEEDS_POSTGRES=true
+fi
+
+# Detect MySQL
+if [ -f "Gemfile" ] && grep -q "gem ['\"]mysql2['\"][,[:space:]]" Gemfile 2>/dev/null; then
+  NEEDS_MYSQL=true
+fi
+if [ -f "package.json" ] && grep -q "\"mysql2\"" package.json 2>/dev/null; then
+  NEEDS_MYSQL=true
+fi
+
+# Detect SQLite
+if [ -f "Gemfile" ] && grep -q "gem ['\"]sqlite3['\"][,[:space:]]" Gemfile 2>/dev/null; then
+  NEEDS_SQLITE=true
+fi
+if [ -f "package.json" ] && grep -q "\"sqlite3\"" package.json 2>/dev/null; then
+  NEEDS_SQLITE=true
+fi
+
+# Detect Redis - check for redis gem/package or job queue libraries
+if [ -f "Gemfile" ] && (grep -q "gem ['\"]redis['\"][,[:space:]]" Gemfile 2>/dev/null || \
+                         grep -q "gem ['\"]sidekiq['\"][,[:space:]]" Gemfile 2>/dev/null); then
+  NEEDS_REDIS=true
+fi
+if [ -f "package.json" ] && (grep -q "\"redis\"" package.json 2>/dev/null || \
+                             grep -q "\"bull\"" package.json 2>/dev/null || \
+                             grep -q "\"bullmq\"" package.json 2>/dev/null); then
+  NEEDS_REDIS=true
+fi
+
+# Log detected services
+if [ "$NEEDS_POSTGRES" = true ]; then
+  success "PostgreSQL requirement detected"
+fi
+if [ "$NEEDS_MYSQL" = true ]; then
+  success "MySQL requirement detected"
+fi
+if [ "$NEEDS_SQLITE" = true ]; then
+  success "SQLite requirement detected"
+fi
+if [ "$NEEDS_REDIS" = true ]; then
+  success "Redis requirement detected"
+fi
+
+# Log if no services detected
+if [ "$NEEDS_POSTGRES" = false ] && \
+   [ "$NEEDS_MYSQL" = false ] && \
+   [ "$NEEDS_SQLITE" = false ] && \
+   [ "$NEEDS_REDIS" = false ]; then
+  info "No external services required"
+fi
+
+# Export for use by child processes or external scripts
+export NEEDS_POSTGRES
+export NEEDS_MYSQL
+export NEEDS_SQLITE
+export NEEDS_REDIS
 separator
 
 section "Dependency Installation"

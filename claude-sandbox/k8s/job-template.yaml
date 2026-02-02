@@ -1,7 +1,11 @@
-# Claude Sandbox - Kubernetes Job Template
+# Claude Sandbox - Kubernetes Job Template (REFERENCE ONLY)
 #
-# This template is used by `bin/claude-sandbox remote` to create jobs.
-# Variables like ${TASK} are substituted by envsubst before applying.
+# NOTE: As of Phase 3, cmd_remote() generates YAML dynamically with conditional sidecars
+# instead of using this static template. This file is kept as a reference for the full
+# job structure with all sidecars included.
+#
+# The dynamic generation conditionally includes postgres-sidecar and redis-sidecar
+# based on service detection, reducing resource waste for jobs that don't need them.
 #
 # Prerequisites:
 #   1. Create the secrets:
@@ -64,7 +68,7 @@ spec:
         - name: REPO_BRANCH
           value: "${REPO_BRANCH}"
         - name: DATABASE_URL
-          value: "postgres://claude:claude@localhost:5432/${DATABASE_NAME:-sandbox_development}"
+          value: "postgis://claude:claude@localhost:5432/sandbox_development"
         - name: REDIS_URL
           value: "redis://localhost:6379"
         - name: RAILS_ENV
@@ -93,14 +97,14 @@ spec:
 
       # Sidecar: Postgres
       - name: postgres-sidecar
-        image: postgres:16-alpine
+        image: postgis/postgis:16-3.4-alpine
         env:
         - name: POSTGRES_USER
           value: claude
         - name: POSTGRES_PASSWORD
           value: claude
         - name: POSTGRES_DB
-          value: ${DATABASE_NAME:-sandbox_development}
+          value: sandbox_development
         volumeMounts:
         - name: workspace
           mountPath: /var/lib/postgresql/data
