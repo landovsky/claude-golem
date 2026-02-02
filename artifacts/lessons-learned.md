@@ -108,3 +108,19 @@
 ### Process improvements
 - **Security checklist for template generation**: When generating configuration files (YAML, JSON) with user input, the plan should include a "string escaping" consideration. Questions to ask: What characters could break the format? Are values properly quoted/escaped?
 - **Multi-phase completion tracking**: TESTING.md still had a "To Do" section referencing Phase 1/2 items. When completing later phases, clean up earlier phase tracking items to maintain documentation accuracy.
+
+## 2026-02-02 - .claude-l86 - PostGIS Support for K8s Sidecars
+
+### What worked well
+- **Universal upgrade strategy**: Using PostGIS universally instead of PostgreSQL-or-PostGIS conditional logic eliminated complexity. Since PostGIS is fully backward compatible with PostgreSQL, this "upgrade all" approach is simpler and equally safe.
+- **Pre-verified approach via Docker Compose**: Docker Compose already used PostGIS successfully, so the K8s changes were just "make it match". This reduced risk and provided a working reference.
+- **Minimal scope, clear boundaries**: The spec explicitly stated "out of scope" items (readiness checks, other databases), preventing scope creep. Four string replacements was the entire implementation.
+- **Documentation already complete**: The analyst noted README already documented PostGIS support, so no doc updates were needed. Good spec research prevented unnecessary work.
+
+### What to avoid
+- **Test templates can get stale**: `k8s/job-template-test.yaml` has commented-out examples showing old `postgres://` and `postgres:16-alpine`. While not functional code, stale examples in test templates can confuse future developers who uncomment them.
+- **Example files in docs may intentionally differ**: Not all `postgres://` references need updating. Documentation examples showing user-provided external database URLs (e.g., `.env.claude-sandbox.example`) are intentionally generic since users may connect to non-PostGIS databases.
+
+### Process improvements
+- **Analyst checklist addition**: When changing default database/service images, identify: (1) functional code to update, (2) reference templates to update, (3) test templates to update, (4) documentation examples that should NOT be updated (because they show user-configurable values).
+- **Backward compatibility simplifies planning**: When an upgrade is fully backward compatible (like PostgreSQL to PostGIS), the plan can be simpler - no feature flags, no detection logic, no conditional paths. Identify compatibility level early in analysis.
