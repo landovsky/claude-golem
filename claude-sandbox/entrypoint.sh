@@ -235,6 +235,117 @@ export NEEDS_SQLITE
 export NEEDS_REDIS
 separator
 
+section "Service Readiness Checks"
+
+# Wait for PostgreSQL if needed
+if [ "$NEEDS_POSTGRES" = true ]; then
+  # Check if DATABASE_URL is set (indicates sidecar/external service)
+  if [ -n "$DATABASE_URL" ]; then
+    action "Waiting for PostgreSQL to be ready..."
+
+    # Extract connection details from DATABASE_URL if needed
+    # For now, use standard localhost connection
+    POSTGRES_HOST="localhost"
+    POSTGRES_PORT="5432"
+    POSTGRES_USER="claude"
+
+    MAX_RETRIES=30
+    RETRY_COUNT=0
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      if pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" > /dev/null 2>&1; then
+        success "PostgreSQL is ready"
+        break
+      fi
+
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        error "PostgreSQL failed to become ready after ${MAX_RETRIES} attempts"
+        exit 1
+      fi
+
+      sleep 1
+    done
+  else
+    info "PostgreSQL detected but DATABASE_URL not set (using external/preconfigured database)"
+  fi
+fi
+
+# Wait for Redis if needed
+if [ "$NEEDS_REDIS" = true ]; then
+  # Check if REDIS_URL is set (indicates sidecar/external service)
+  if [ -n "$REDIS_URL" ]; then
+    action "Waiting for Redis to be ready..."
+
+    REDIS_HOST="localhost"
+    REDIS_PORT="6379"
+
+    MAX_RETRIES=30
+    RETRY_COUNT=0
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping > /dev/null 2>&1; then
+        success "Redis is ready"
+        break
+      fi
+
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        error "Redis failed to become ready after ${MAX_RETRIES} attempts"
+        exit 1
+      fi
+
+      sleep 1
+    done
+  else
+    info "Redis detected but REDIS_URL not set (using external/preconfigured service)"
+  fi
+fi
+
+# MySQL readiness check
+if [ "$NEEDS_MYSQL" = true ]; then
+  # Check if MYSQL_URL or similar is set
+  if [ -n "$MYSQL_URL" ] || [ -n "$DATABASE_URL" ]; then
+    action "Waiting for MySQL to be ready..."
+
+    MYSQL_HOST="localhost"
+    MYSQL_PORT="3306"
+
+    MAX_RETRIES=30
+    RETRY_COUNT=0
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      if mysqladmin ping -h "$MYSQL_HOST" -P "$MYSQL_PORT" --silent > /dev/null 2>&1; then
+        success "MySQL is ready"
+        break
+      fi
+
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        error "MySQL failed to become ready after ${MAX_RETRIES} attempts"
+        exit 1
+      fi
+
+      sleep 1
+    done
+  else
+    info "MySQL detected but no connection URL set (using external/preconfigured database)"
+  fi
+fi
+
+# SQLite needs no readiness check (local file)
+if [ "$NEEDS_SQLITE" = true ]; then
+  info "SQLite detected (no readiness check needed)"
+fi
+
+# Log if no services need readiness checks
+if [ "$NEEDS_POSTGRES" = false ] && \
+   [ "$NEEDS_MYSQL" = false ] && \
+   [ "$NEEDS_REDIS" = false ]; then
+  info "No service readiness checks required"
+fi
+separator
+
 section "Dependency Installation"
 
 # Install Ruby dependencies if needed
