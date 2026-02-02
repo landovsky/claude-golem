@@ -56,11 +56,11 @@ git archive --remote="$ARCHIVE_URL" HEAD Gemfile 2>/dev/null | tar -xC "$temp_di
 git archive --remote="$ARCHIVE_URL" HEAD package.json 2>/dev/null | tar -xC "$temp_dir" 2>/dev/null || true
 
 if [ -f "$temp_dir/Gemfile" ]; then
-  if grep -q "gem ['\"]pg['\"]" "$temp_dir/Gemfile" 2>/dev/null; then
+  if grep -q "gem ['\"]pg['\"][,[:space:]]" "$temp_dir/Gemfile" 2>/dev/null; then
     profiles="$profiles with-postgres"
   fi
-  if grep -q "gem ['\"]redis['\"]" "$temp_dir/Gemfile" 2>/dev/null || \
-     grep -q "gem ['\"]sidekiq['\"]" "$temp_dir/Gemfile" 2>/dev/null; then
+  if grep -q "gem ['\"]redis['\"][,[:space:]]" "$temp_dir/Gemfile" 2>/dev/null || \
+     grep -q "gem ['\"]sidekiq['\"][,[:space:]]" "$temp_dir/Gemfile" 2>/dev/null; then
     profiles="$profiles with-redis"
   fi
 fi
@@ -78,4 +78,10 @@ fi
 
 # Deduplicate
 profiles=$(echo "$profiles" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-echo "$profiles"
+
+# Fail-open: if no services detected and no files were found, include all services
+if [ "$profiles" = "claude " ] && [ ! -f "$temp_dir/Gemfile" ] && [ ! -f "$temp_dir/package.json" ]; then
+  echo "claude with-postgres with-redis"
+else
+  echo "$profiles"
+fi

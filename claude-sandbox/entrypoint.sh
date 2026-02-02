@@ -172,7 +172,7 @@ NEEDS_SQLITE=false
 NEEDS_REDIS=false
 
 # Detect Postgres
-if [ -f "Gemfile" ] && grep -q "gem ['\"]pg['\"]" Gemfile 2>/dev/null; then
+if [ -f "Gemfile" ] && grep -q "gem ['\"]pg['\"][,[:space:]]" Gemfile 2>/dev/null; then
   NEEDS_POSTGRES=true
 fi
 if [ -f "package.json" ] && grep -q "\"pg\"" package.json 2>/dev/null; then
@@ -180,7 +180,7 @@ if [ -f "package.json" ] && grep -q "\"pg\"" package.json 2>/dev/null; then
 fi
 
 # Detect MySQL
-if [ -f "Gemfile" ] && grep -q "gem ['\"]mysql2['\"]" Gemfile 2>/dev/null; then
+if [ -f "Gemfile" ] && grep -q "gem ['\"]mysql2['\"][,[:space:]]" Gemfile 2>/dev/null; then
   NEEDS_MYSQL=true
 fi
 if [ -f "package.json" ] && grep -q "\"mysql2\"" package.json 2>/dev/null; then
@@ -188,7 +188,7 @@ if [ -f "package.json" ] && grep -q "\"mysql2\"" package.json 2>/dev/null; then
 fi
 
 # Detect SQLite
-if [ -f "Gemfile" ] && grep -q "gem ['\"]sqlite3['\"]" Gemfile 2>/dev/null; then
+if [ -f "Gemfile" ] && grep -q "gem ['\"]sqlite3['\"][,[:space:]]" Gemfile 2>/dev/null; then
   NEEDS_SQLITE=true
 fi
 if [ -f "package.json" ] && grep -q "\"sqlite3\"" package.json 2>/dev/null; then
@@ -196,8 +196,8 @@ if [ -f "package.json" ] && grep -q "\"sqlite3\"" package.json 2>/dev/null; then
 fi
 
 # Detect Redis - check for redis gem/package or job queue libraries
-if [ -f "Gemfile" ] && (grep -q "gem ['\"]redis['\"]" Gemfile 2>/dev/null || \
-                         grep -q "gem ['\"]sidekiq['\"]" Gemfile 2>/dev/null); then
+if [ -f "Gemfile" ] && (grep -q "gem ['\"]redis['\"][,[:space:]]" Gemfile 2>/dev/null || \
+                         grep -q "gem ['\"]sidekiq['\"][,[:space:]]" Gemfile 2>/dev/null); then
   NEEDS_REDIS=true
 fi
 if [ -f "package.json" ] && (grep -q "\"redis\"" package.json 2>/dev/null || \
