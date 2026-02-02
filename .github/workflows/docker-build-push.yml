@@ -101,8 +101,11 @@ jobs:
           tags: |
             ${{ github.repository_owner }}/claude-sandbox:${{ steps.version.outputs.version }}
             ${{ github.repository_owner }}/claude-sandbox:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Cache disabled temporarily to ensure claude-config changes are picked up
+          # The COPY claude-config/ layer was being cached despite content changes
+          # TODO: Re-enable caching with proper cache invalidation strategy
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
           # Note: arm64 disabled due to Dockerfile hardcoding amd64 URLs for SOPS/age
           # See Dockerfile lines 72-77 - fix there first before enabling multi-arch
           platforms: linux/amd64
