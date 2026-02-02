@@ -29,10 +29,38 @@ jobs:
       - name: Prepare claude-config directory
         working-directory: ./claude-sandbox
         run: |
-          # Create minimal claude-config structure for test builds
+          # Create claude-config structure for test builds
+          # Copy agents, artifacts, and commands from the repository
           mkdir -p claude-config/agents
           mkdir -p claude-config/artifacts
           mkdir -p claude-config/commands
+
+          # Copy agents from repository
+          if [ -d "../agents" ] && [ -n "$(ls -A ../agents 2>/dev/null)" ]; then
+            echo "Copying agents from repository..."
+            cp -r ../agents/* claude-config/agents/
+            echo "Agents copied: $(ls -1 claude-config/agents/ | wc -l) files"
+          else
+            echo "No agents found in repository"
+          fi
+
+          # Copy artifacts from repository
+          if [ -d "../artifacts" ] && [ -n "$(ls -A ../artifacts 2>/dev/null)" ]; then
+            echo "Copying artifacts from repository..."
+            cp -r ../artifacts/* claude-config/artifacts/
+            echo "Artifacts copied"
+          else
+            echo "No artifacts found in repository"
+          fi
+
+          # Copy commands from repository
+          if [ -d "../commands" ] && [ -n "$(ls -A ../commands 2>/dev/null)" ]; then
+            echo "Copying commands from repository..."
+            cp -r ../commands/* claude-config/commands/
+            echo "Commands copied: $(ls -1 claude-config/commands/ | wc -l) files"
+          else
+            echo "No commands found in repository"
+          fi
 
           # Create minimal settings.json
           cat > claude-config/settings.json << 'EOF'
@@ -44,7 +72,7 @@ jobs:
           }
           EOF
 
-          echo "Created minimal claude-config for test build"
+          echo "✓ Claude config prepared for test build"
 
       - name: Test Docker build
         uses: docker/build-push-action@v5
