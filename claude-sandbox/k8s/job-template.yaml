@@ -68,7 +68,7 @@ spec:
         - name: REPO_BRANCH
           value: "${REPO_BRANCH}"
         - name: DATABASE_URL
-          value: "postgres://claude:claude@localhost:5432/sandbox_development"
+          value: "postgis://claude:claude@localhost:5432/sandbox_development"
         - name: REDIS_URL
           value: "redis://localhost:6379"
         - name: RAILS_ENV
@@ -97,7 +97,7 @@ spec:
 
       # Sidecar: Postgres
       - name: postgres-sidecar
-        image: postgres:16-alpine
+        image: postgis/postgis:16-3.4-alpine
         env:
         - name: POSTGRES_USER
           value: claude

@@ -334,7 +334,7 @@ generate_k8s_job_yaml() {
   if [ "$needs_postgres" = "true" ]; then
     claude_env_vars="${claude_env_vars}
         - name: DATABASE_URL
-          value: \"postgres://claude:claude@localhost:5432/\${DATABASE_NAME}\""
+          value: \"postgis://claude:claude@localhost:5432/\${DATABASE_NAME}\""
   fi
 
   # Add REDIS_URL only if redis is needed
@@ -358,7 +358,7 @@ generate_k8s_job_yaml() {
     sidecars="${sidecars}
       # Sidecar: Postgres
       - name: postgres-sidecar
-        image: postgres:16-alpine
+        image: postgis/postgis:16-3.4-alpine
         env:
         - name: POSTGRES_USER
           value: claude
