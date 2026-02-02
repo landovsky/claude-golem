@@ -64,7 +64,7 @@ bin/claude-sandbox local "fix the authentication bug in login controller"
 - ✅ Basic job execution (clone repo, run Claude)
 - ✅ Dynamic sidecar provisioning (only includes required services)
 - ✅ SOPS encrypted secrets
-- ✅ .env.claude plaintext config
+- ✅ .env.claude-sandbox plaintext config
 - ✅ REPO_URL auto-detection
 - ✅ Parallel deployments
 
@@ -351,18 +351,18 @@ When configured, you'll receive a message when:
 
 Project-specific environment variables can be managed two ways:
 
-#### .env.claude - Plaintext Config
+#### .env.claude-sandbox - Plaintext Config
 For non-sensitive configuration (database names, feature flags, etc.):
 
 ```bash
 # In your project root
-cat > .env.claude << EOF
+cat > .env.claude-sandbox << EOF
 DATABASE_NAME=myapp_development
 RAILS_ENV=development
 ENABLE_FEATURE_X=true
 EOF
 
-git add .env.claude
+git add .env.claude-sandbox
 git commit -m "Add project config"
 ```
 
@@ -394,7 +394,7 @@ git add .sops.yaml .env.sops
 git commit -m "Add encrypted secrets"
 ```
 
-**You can use both!** Put public config in `.env.claude` and secrets in `.env.sops`.
+**You can use both!** Put public config in `.env.claude-sandbox` and secrets in `.env.sops`.
 
 **See [docs/SOPS-SETUP.md](docs/SOPS-SETUP.md) for complete guide.**
 

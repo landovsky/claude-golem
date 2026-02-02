@@ -99,15 +99,15 @@ separator
 
 section "Environment Configuration"
 
-# Load plaintext environment variables from .env.claude if present
-if [ -f .env.claude ]; then
-  action "Loading .env.claude..."
+# Load plaintext environment variables from .env.claude-sandbox if present
+if [ -f .env.claude-sandbox ]; then
+  action "Loading .env.claude-sandbox..."
   set -a  # Automatically export all variables
-  source .env.claude
+  source .env.claude-sandbox
   set +a  # Turn off auto-export
-  success "Environment variables loaded from .env.claude"
+  success "Environment variables loaded from .env.claude-sandbox"
 else
-  info "No .env.claude file found"
+  info "No .env.claude-sandbox file found"
 fi
 
 # Load encrypted secrets from .env.sops if present
@@ -129,7 +129,7 @@ else
 fi
 
 # Summary
-if [ ! -f .env.claude ] && [ ! -f .env.sops ]; then
+if [ ! -f .env.claude-sandbox ] && [ ! -f .env.sops ]; then
   info "Using environment variables from k8s secrets only"
 fi
 separator
