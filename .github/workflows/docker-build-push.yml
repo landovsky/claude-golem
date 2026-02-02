@@ -98,9 +98,14 @@ jobs:
           context: ./claude-sandbox
           push: true
           # Uses repository owner for automatic fork support
+          # Includes ruby-3.4 tag for compatibility with claude-sandbox CLI
+          # which auto-detects Ruby version and uses :ruby-X.Y tags
           tags: |
             ${{ github.repository_owner }}/claude-sandbox:${{ steps.version.outputs.version }}
             ${{ github.repository_owner }}/claude-sandbox:latest
+            ${{ github.repository_owner }}/claude-sandbox:ruby-3.4
+            ${{ github.repository_owner }}/claude-sandbox:ruby-3.3
+            ${{ github.repository_owner }}/claude-sandbox:ruby-3.2
           # Cache disabled temporarily to ensure claude-config changes are picked up
           # The COPY claude-config/ layer was being cached despite content changes
           # TODO: Re-enable caching with proper cache invalidation strategy
@@ -115,3 +120,6 @@ jobs:
           echo "✓ Image pushed to Docker Hub:"
           echo "  - ${{ github.repository_owner }}/claude-sandbox:${{ steps.version.outputs.version }}"
           echo "  - ${{ github.repository_owner }}/claude-sandbox:latest"
+          echo "  - ${{ github.repository_owner }}/claude-sandbox:ruby-3.4"
+          echo "  - ${{ github.repository_owner }}/claude-sandbox:ruby-3.3"
+          echo "  - ${{ github.repository_owner }}/claude-sandbox:ruby-3.2"
