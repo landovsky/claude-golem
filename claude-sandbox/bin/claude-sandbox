@@ -196,7 +196,7 @@ Usage: claude-sandbox <command> [options]
 Commands:
   local <task>     Run Claude locally with Docker Compose
   remote <task>    Run Claude on k8s cluster
-  build            Build the Docker image
+  build [--force]  Build the Docker image (--force to rebuild without cache)
   push             Push image to registry
   logs             Follow logs of running k8s job
   clean            Clean up completed k8s jobs
@@ -559,7 +559,26 @@ cmd_remote() {
 }
 
 cmd_build() {
+  # Parse options
+  local force_rebuild=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force)
+        force_rebuild=true
+        shift
+        ;;
+      *)
+        error "Unknown option: $1"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
   log "Building Docker images for all Ruby versions..."
+  if [ "$force_rebuild" = true ]; then
+    log "Force rebuild enabled - ignoring cache"
+  fi
   cd "$SANDBOX_DIR"
 
   # Copy Claude config (agents, settings) to build context
@@ -620,8 +639,11 @@ EOF
       local image_tag="ruby-${major_minor}"
 
       log "Building Ruby ${full_version}..."
-      docker build --build-arg RUBY_VERSION="${full_version}" \
-        -t "claude-sandbox:${image_tag}" .
+      local build_opts="--build-arg RUBY_VERSION=${full_version}"
+      if [ "$force_rebuild" = true ]; then
+        build_opts="$build_opts --no-cache"
+      fi
+      docker build $build_opts -t "claude-sandbox:${image_tag}" .
 
       success "Tagged as claude-sandbox:${image_tag}"
       version_count=$((version_count + 1))
@@ -720,7 +742,8 @@ case "${1:-}" in
     cmd_remote "$@"
     ;;
   build)
-    cmd_build
+    shift
+    cmd_build "$@"
     ;;
   push)
     cmd_push
