@@ -42,12 +42,18 @@ if [ -d "$PWD/.git" ]; then
   fi
 fi
 
-# Try git archive for remote repos (won't work for GitHub.com HTTPS)
+# Try git archive for remote repos
 temp_dir=$(mktemp -d)
 trap "rm -rf $temp_dir" EXIT
 
-git archive --remote="$REPO_URL" HEAD Gemfile 2>/dev/null | tar -xC "$temp_dir" 2>/dev/null || true
-git archive --remote="$REPO_URL" HEAD package.json 2>/dev/null | tar -xC "$temp_dir" 2>/dev/null || true
+# Embed GITHUB_TOKEN in HTTPS URLs for authentication
+ARCHIVE_URL="$REPO_URL"
+if [[ "$REPO_URL" =~ ^https://github\.com/ ]] && [ -n "$GITHUB_TOKEN" ]; then
+  ARCHIVE_URL=$(echo "$REPO_URL" | sed "s|https://|https://x-access-token:${GITHUB_TOKEN}@|")
+fi
+
+git archive --remote="$ARCHIVE_URL" HEAD Gemfile 2>/dev/null | tar -xC "$temp_dir" 2>/dev/null || true
+git archive --remote="$ARCHIVE_URL" HEAD package.json 2>/dev/null | tar -xC "$temp_dir" 2>/dev/null || true
 
 if [ -f "$temp_dir/Gemfile" ]; then
   if grep -q "gem ['\"]pg['\"]" "$temp_dir/Gemfile" 2>/dev/null; then
