@@ -124,3 +124,19 @@
 ### Process improvements
 - **Analyst checklist addition**: When changing default database/service images, identify: (1) functional code to update, (2) reference templates to update, (3) test templates to update, (4) documentation examples that should NOT be updated (because they show user-configurable values).
 - **Backward compatibility simplifies planning**: When an upgrade is fully backward compatible (like PostgreSQL to PostGIS), the plan can be simpler - no feature flags, no detection logic, no conditional paths. Identify compatibility level early in analysis.
+
+## 2026-02-03 - .claude-l0a - Usage Metrics Collection (Phase 1)
+
+### What worked well
+- **jq for JSON generation prevents injection**: Using `jq -nc --arg field "$value"` pattern (see `/Users/tomas/.claude/hooks/metrics-start.sh` lines 32-47) safely escapes all user input. This is the correct pattern for any hook that generates JSON from environment variables or user input.
+- **Exit 0 always pattern**: `set +e` at script top combined with `|| true` on critical operations (file writes, bd commands) ensures hooks never break the workflow. This is essential for any Claude Code hook script.
+- **Portable date handling with fallback chain**: The pattern in `/Users/tomas/.claude/hooks/metrics-end.sh` lines 43-55 handles gdate (homebrew), GNU date (Linux), and BSD date (macOS) automatically. Copy this pattern for any duration/timestamp calculations in hook scripts.
+- **Test data as verification**: The committed `workflow-metrics.jsonl` with test scenarios (truncation, blocked status, fallback values) provides immediate evidence that edge cases were tested.
+
+### What to avoid
+- **Hardcoding absolute paths in hook scripts**: Both hook scripts use `/Users/tomas/.claude/workflow-metrics.jsonl`. For personal use this works, but for distributable hooks use `$CLAUDE_PROJECT_DIR/.claude/workflow-metrics.jsonl` to maintain portability.
+- **Assuming settings.json can be committed**: Claude's settings.json is user-specific and typically in .gitignore. Document manual setup steps rather than expecting hook configurations to auto-apply.
+
+### Process improvements
+- **Spec should clarify user-specific vs project files**: The spec listed "Update settings.json with hook configuration" as a requirement, but settings.json is user-specific (in .gitignore). The implementer correctly handled this by documenting the manual setup, but the spec could have been clearer by noting "(user must add manually - file not committed)".
+- **Include conditional logic for edge cases in spec**: The implementer added a smart check for task ID format before posting bd comments (only posts if task contains `.`). This prevents errors but was not in the spec. Analyst should consider defensive conditions for external service calls.
