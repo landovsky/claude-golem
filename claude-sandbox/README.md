@@ -16,6 +16,19 @@ When you want Claude to work on tasks without supervision:
 - **Full stack**: PostgreSQL, Redis, Chrome (for system tests) included
 - **SOPS Integration**: Encrypted secrets in your repo, no manual k8s secret management
 
+## Architecture & Documentation
+
+For a comprehensive understanding of how claude-sandbox works:
+
+📖 **[Architecture Documentation](docs/ARCHITECTURE.md)** - Complete system architecture, components, deployment models, and key mechanisms
+
+Additional documentation:
+- **[Architecture Decisions](docs/ARCHITECTURE-DECISIONS.md)** - Historical record of major design decisions
+- **[Extending](docs/EXTENDING.md)** - How to add new languages, databases, and services
+- **[Kubernetes Setup](docs/kubernetes-cluster-setup-guide.md)** - Cluster configuration guide
+- **[SOPS Setup](docs/SOPS-setup.md)** - Encrypted secrets management
+- **[Ruby Versions](docs/RUBY-VERSIONS-management.md)** - Managing multiple Ruby versions
+
 ## Quick Start
 
 ### Authentication
@@ -403,7 +416,7 @@ git commit -m "Add encrypted secrets"
 
 **You can use both!** Put public config in `.env.claude-sandbox` and secrets in `.env.sops`.
 
-**See [docs/SOPS-SETUP.md](docs/SOPS-SETUP.md) for complete guide.**
+**See [docs/SOPS-setup.md](docs/SOPS-setup.md) for complete guide.**
 
 ## Directory Structure
 
@@ -419,9 +432,9 @@ claude-sandbox/
 │   └── claude-sandbox      # Main CLI script
 ├── docs/
 │   ├── kubernetes-cluster-setup-guide.md  # K8s cluster configuration guide
-│   ├── SOPS-SETUP.md                      # Encrypted secrets setup
-│   ├── RUBY-VERSIONS.md                   # Ruby version management
-│   ├── ENV-FILES.md                       # Environment file documentation
+│   ├── SOPS-setup.md                      # Encrypted secrets setup
+│   ├── RUBY-VERSIONS-management.md                   # Ruby version management
+│   ├── ENV-FILES-management.md                       # Environment file documentation
 │   └── docker-gotchas.md                  # Docker troubleshooting
 └── k8s/
     ├── job-template.yaml   # K8s Job template (reference)
@@ -467,7 +480,7 @@ bin/claude-sandbox local "work on task 123"
 2. Rebuild images: `bin/claude-sandbox build`
 3. All versions are built automatically with tags like `ruby-X.Y`
 
-See [docs/RUBY-VERSIONS.md](docs/RUBY-VERSIONS.md) for details.
+See [docs/RUBY-VERSIONS-management.md](docs/RUBY-VERSIONS-management.md) for details.
 
 ### Add System Dependencies
 

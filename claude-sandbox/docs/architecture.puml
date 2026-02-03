@@ -1,296 +1,142 @@
 @startuml claude-sandbox-architecture
-!define LIGHTYELLOW #FFFACD
-!define LIGHTGREEN #E0FFE0
-!define LIGHTBLUE #E0F0FF
-!define LIGHTPINK #FFE0E0
-!define LIGHTGRAY #F0F0F0
-!define LIGHTORANGE #FFE5CC
 
 skinparam packageStyle rectangle
 skinparam componentStyle rectangle
+
+skinparam package<<client>> {
+  BackgroundColor #FFFACD
+}
+skinparam package<<local>> {
+  BackgroundColor #E0FFE0
+}
+skinparam package<<remote>> {
+  BackgroundColor #E0F0FF
+}
+skinparam package<<image>> {
+  BackgroundColor #FFE0E0
+}
+skinparam package<<runtime>> {
+  BackgroundColor #FFE5CC
+}
+skinparam package<<config>> {
+  BackgroundColor #F0F0F0
+}
 
 title Claude Sandbox - Architecture Overview
 
 ' ========================
 ' LAYER 1: CLIENT / CLI
 ' ========================
-package "CLIENT LAYER" as client LIGHTYELLOW {
-    component "claude-sandbox CLI" as cli [
-        **claude-sandbox**
-        ====
-        Commands:
-        • local <task>
-        • remote <task>
-        • build [--force]
-        • push
-        • logs
-        • clean
-    ]
+package "CLIENT LAYER" <<client>> {
+    [claude-sandbox CLI] as cli
+    [detect-services.sh] as detect
+    [Auto-Detection] as autodetect
 
-    component "Service Detection" as detect [
-        **detect-services.sh**
-        ====
-        Scans:
-        • Gemfile (pg, redis, mysql2, sqlite3)
-        • package.json (pg, redis, bull, bullmq)
-        ====
-        Returns: service profiles
-    ]
-
-    component "Auto-Detection" as autodetect [
-        **Auto-Detection**
-        ====
-        • REPO_URL (git remote)
-        • REPO_BRANCH (current branch)
-        • RUBY_VERSION (.ruby-version)
-        • IMAGE_TAG (from versions.yaml)
-    ]
+    note right of cli
+        Commands: local, remote,
+        build, push, logs, clean
+    end note
 }
 
 ' ========================
 ' LAYER 2: ORCHESTRATION - LOCAL
 ' ========================
-package "LOCAL EXECUTION" as local LIGHTGREEN {
-    node "Docker Compose" as compose {
-        component "docker-compose.yml" as dcyml [
-            **docker-compose.yml**
-            ====
-            Profiles:
-            • claude (main)
-            • with-postgres
-            • with-redis
-            • with-mysql
-            • with-sqlite
-        ]
+package "LOCAL EXECUTION" <<local>> {
+    node "Docker Compose" {
+        [docker-compose.yml] as dcyml
+        note right of dcyml
+            Profiles: claude,
+            with-postgres, with-redis,
+            with-mysql, with-sqlite
+        end note
     }
 
-    node "Docker Network" as network {
-        component "claude container" as localclaude [
-            **claude container**
-            ====
-            Image: claude-sandbox:ruby-X.Y
-            User: claude:claude
-            Volumes: claude_workspace
-        ]
-
-        database "postgres-sidecar" as localpg [
-            postgis:16-3.4-alpine
-            ----
-            Profile: with-postgres
-            Port: 5432
-        ]
-
-        database "redis-sidecar" as localredis [
-            redis:7-alpine
-            ----
-            Profile: with-redis
-            Port: 6379
-        ]
+    node "Docker Network" {
+        [claude container] as localclaude
+        database "postgres" as localpg
+        database "redis" as localredis
     }
 }
 
 ' ========================
 ' LAYER 2: ORCHESTRATION - REMOTE
 ' ========================
-package "REMOTE EXECUTION" as remote LIGHTBLUE {
-    node "Kubernetes Cluster" as k8s {
-        component "Job Generator" as jobgen [
-            **generate_k8s_job_yaml()**
-            ====
-            Dynamic YAML generation:
-            • Conditional sidecars
-            • Service-based env vars
-            • Secret injection
-            • Resource limits
-        ]
-
-        node "Pod: claude-sandbox-YYYYMMDD-HHMMSS" as pod {
-            component "claude container" as remoteclaude [
-                **claude container**
-                ====
-                Image: ${CLAUDE_IMAGE}:${IMAGE_TAG}
-                User: claude:claude
-                Resources: 2-4Gi mem, 1-2 CPU
-                Volumes: /workspace, /dev/shm, /secrets
-            ]
-
-            database "postgres-sidecar\n[CONDITIONAL]" as remotepg [
-                postgis:16-3.4-alpine
-                ----
-                Condition: needs_postgres
-                Resources: 256-512Mi, 100-500m CPU
-            ]
-
-            database "redis-sidecar\n[CONDITIONAL]" as remoteredis [
-                redis:7-alpine
-                ----
-                Condition: needs_redis
-                Resources: 64-128Mi, 50-200m CPU
-            ]
-        }
-
+package "REMOTE EXECUTION" <<remote>> {
+    node "Kubernetes Cluster" {
+        [generate_k8s_job_yaml()] as jobgen
         cloud "kubectl API" as kubectl
+
+        node "Pod" {
+            [claude container] as remoteclaude
+            database "postgres\n[CONDITIONAL]" as remotepg
+            database "redis\n[CONDITIONAL]" as remoteredis
+        }
     }
 }
 
 ' ========================
 ' LAYER 3: CONTAINER IMAGE
 ' ========================
-package "CONTAINER IMAGE" as image LIGHTPINK {
-    component "Dockerfile" as dockerfile [
-        **Dockerfile**
-        ====
+package "CONTAINER IMAGE" <<image>> {
+    [Dockerfile] as dockerfile
+    [Baked: ~/.claude/] as baked
+
+    note right of dockerfile
         Base: ubuntu:24.04
         Ruby: 3.2.6 / 3.3.6 / 3.4.7
         Node: 22 LTS
-        Tools:
-        • postgresql-client
-        • redis-tools
-        • chromium-browser
-        • git, jq, vim
-        • beads (bd)
-        • Claude Code CLI
-        • SOPS, age
-    ]
-
-    component "Baked Config" as baked [
-        **/home/claude/.claude/**
-        ====
-        • agents/
-        • artifacts/
-        • commands/
-    ]
+        Tools: postgresql-client,
+        redis-tools, chromium,
+        beads, Claude CLI, SOPS
+    end note
 }
 
 ' ========================
-' LAYER 4: RUNTIME - CONTAINER INTERNALS
+' LAYER 4: RUNTIME
 ' ========================
-package "CONTAINER RUNTIME" as runtime LIGHTORANGE {
-    component "entrypoint.sh" as entrypoint [
-        **entrypoint.sh**
-        ====
-        1. Clone repo (REPO_URL + branch)
-        2. Load .env.claude-sandbox
-        3. Decrypt .env.sops (if age key exists)
-        4. Detect project type (Rails/Node)
-        5. Detect services (postgres/redis/mysql/sqlite)
-        6. Wait for service readiness
-        7. Install dependencies (bundle/npm)
-        8. Rails db:prepare
-        9. Beads setup & sync
-        10. Execute Claude CLI
-        11. Telegram notification (EXIT trap)
-    ]
+package "CONTAINER RUNTIME" <<runtime>> {
+    [entrypoint.sh] as entrypoint
+    [safe-git] as safegit
+    [Claude Code CLI] as claudecli
+    [notify-telegram.sh] as telegram
+    storage "/workspace" as workspace
 
-    component "safe-git" as safegit [
-        **safe-git wrapper**
-        ====
-        Protections:
-        • Block force push to main/master/production
-        • Warn on direct push to protected branches
-        • Warn on hard reset to protected branches
-    ]
-
-    component "Claude Code CLI" as claudecli [
-        **claude**
-        ====
-        Command:
-        claude --dangerously-skip-permissions
-          -p "$TASK"
-          --output-format stream-json
-          --verbose
-        ====
-        Agents: Analyst → Planner → Implementer → Reviewer
-    ]
-
-    component "notify-telegram.sh" as telegram [
-        **notify-telegram.sh**
-        ====
-        Status: ✅ ❌ 💀 ⚠️
-        Info: task, repo, branch, commit
-    ]
-
-    storage "/workspace" as workspace [
-        **/workspace/**
-        ====
-        Repository clone
-        Gems: vendor/bundle
-        NPM: node_modules
-        DB: postgres/ (local only)
-    ]
+    note right of entrypoint
+        1. Clone repo
+        2. Load env & decrypt secrets
+        3. Detect services
+        4. Wait for readiness
+        5. Install dependencies
+        6. Rails db:prepare
+        7. Beads setup
+        8. Execute Claude
+        9. Telegram notification
+    end note
 }
 
 ' ========================
-' LAYER 5: CONFIGURATION & SECRETS
+' LAYER 5: CONFIGURATION
 ' ========================
-package "CONFIGURATION" as config LIGHTGRAY {
-    file ".env.claude-sandbox" as envplain [
-        **Plaintext Config**
-        ====
-        Non-sensitive env vars
-        Sourced by entrypoint.sh
-    ]
-
-    file ".env.sops" as envsops [
-        **Encrypted Secrets**
-        ====
-        SOPS encrypted with age
-        Decrypted at runtime
-        Requires: /secrets/age-key.txt
-    ]
-
-    cloud "K8s Secrets" as k8ssecrets [
-        **kubectl secrets**
-        ====
-        • GITHUB_TOKEN
-        • CLAUDE_CODE_OAUTH_TOKEN
-        • ANTHROPIC_API_KEY
-        • TELEGRAM_BOT_TOKEN
-        • TELEGRAM_CHAT_ID
-    ]
-
-    file "ruby-versions.yaml" as rubyversions [
-        **ruby-versions.yaml**
-        ====
-        3.2: 3.2.6
-        3.3: 3.3.6
-        3.4: 3.4.7
-        default: 3.4
-    ]
+package "CONFIGURATION" <<config>> {
+    file ".env.claude-sandbox" as envplain
+    file ".env.sops" as envsops
+    cloud "K8s Secrets" as k8ssecrets
+    file "ruby-versions.yaml" as rubyversions
 }
 
 ' ========================
 ' EXTERNAL SERVICES
 ' ========================
-package "EXTERNAL SERVICES" as external {
-    cloud "GitHub" as github [
-        GitHub Repository
-        ====
-        • Clone source
-        • Push target
-        • Branch protection
-    ]
-
-    cloud "Telegram" as telegramapi [
-        Telegram Bot API
-        ====
-        Notifications
-    ]
-
-    cloud "Docker Registry" as registry [
-        Docker Registry
-        ====
-        Image: landovsky/claude-sandbox
-        Tags: ruby-3.2, ruby-3.3, ruby-3.4, latest
-    ]
-}
+cloud "GitHub" as github
+cloud "Telegram" as telegramapi
+cloud "Docker Registry" as registry
 
 ' ========================
 ' RELATIONSHIPS - CLIENT TO ORCHESTRATION
 ' ========================
-cli --> autodetect : uses
-cli --> detect : calls
-cli --> rubyversions : reads
+cli --> autodetect
+cli --> detect
+cli --> rubyversions
 
 autodetect ..> github : git remote
 
@@ -303,7 +149,7 @@ dcyml --> localredis : creates (conditional)
 ' REMOTE PATH
 cli --> jobgen : generates YAML
 cli --> kubectl : kubectl apply
-jobgen --> kubectl : YAML manifest
+jobgen --> kubectl
 kubectl --> remoteclaude : creates Pod
 kubectl --> remotepg : creates (conditional)
 kubectl --> remoteredis : creates (conditional)
@@ -326,12 +172,12 @@ entrypoint --> github : git clone
 entrypoint --> workspace : writes to
 entrypoint --> envplain : sources
 entrypoint --> envsops : decrypts
-entrypoint --> safegit : configures git wrapper
+entrypoint --> safegit : configures
 entrypoint --> claudecli : exec
 entrypoint --> telegram : EXIT trap
 
 claudecli --> workspace : reads/writes
-claudecli --> safegit : git operations
+claudecli --> safegit : git ops
 safegit --> github : safe push/pull
 
 telegram ..> telegramapi : HTTP POST
@@ -349,12 +195,12 @@ remoteclaude --> remoteredis : localhost:6379
 ' ========================
 legend right
     |= Color |= Layer |
-    | <back:LIGHTYELLOW>   </back> | Client / CLI |
-    | <back:LIGHTGREEN>   </back> | Local Execution (Docker Compose) |
-    | <back:LIGHTBLUE>   </back> | Remote Execution (Kubernetes) |
-    | <back:LIGHTPINK>   </back> | Container Image |
-    | <back:LIGHTORANGE>   </back> | Container Runtime |
-    | <back:LIGHTGRAY>   </back> | Configuration & Secrets |
+    | <back:#FFFACD>   </back> | Client / CLI |
+    | <back:#E0FFE0>   </back> | Local Execution |
+    | <back:#E0F0FF>   </back> | Remote Execution |
+    | <back:#FFE0E0>   </back> | Container Image |
+    | <back:#FFE5CC>   </back> | Container Runtime |
+    | <back:#F0F0F0>   </back> | Configuration |
 
     **Execution Paths:**
     1. Local: CLI → Docker Compose → Container

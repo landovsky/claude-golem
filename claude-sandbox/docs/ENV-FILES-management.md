@@ -53,7 +53,7 @@ DATABASE_PASSWORD=secret123
 
 **Commit:** ✅ Yes - encrypted, safe to commit
 
-**Setup:** Requires SOPS + age key (see [SOPS-SETUP.md](SOPS-SETUP.md))
+**Setup:** Requires SOPS + age key (see [SOPS-setup.md](SOPS-setup.md))
 
 ## .env.local (Optional)
 
@@ -230,7 +230,7 @@ kubectl exec <pod-name> -- env | grep DATABASE_NAME
 
 ### SOPS decryption fails
 
-See [SOPS-SETUP.md#troubleshooting](SOPS-SETUP.md#troubleshooting)
+See [SOPS-setup.md#troubleshooting](SOPS-setup.md#troubleshooting)
 
 ## Migration Guide
 
@@ -279,6 +279,6 @@ git commit -m "Move public config to .env.claude-sandbox"
 
 ## See Also
 
-- [SOPS-SETUP.md](SOPS-SETUP.md) - Complete SOPS guide
+- [SOPS-setup.md](SOPS-setup.md) - Complete SOPS guide
 - [.env.claude-sandbox.example](/.env.claude-sandbox.example) - Example file
 - [.env.sops.example](/.env.sops.example) - Example file

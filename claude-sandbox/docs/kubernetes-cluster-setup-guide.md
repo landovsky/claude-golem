@@ -402,7 +402,7 @@ The image automatically detects Ruby version from `.ruby-version` in your reposi
 - Uses tagged images: `claude-sandbox:ruby-3.3`
 - Falls back to Ruby 3.4 (latest) if not specified
 
-See [RUBY-VERSIONS.md](RUBY-VERSIONS.md) for details.
+See [RUBY-VERSIONS-management.md](RUBY-VERSIONS-management.md) for details.
 
 ### SOPS Encrypted Secrets
 
@@ -413,7 +413,7 @@ For project-specific secrets that should live in your repository:
 3. Create `age-key` secret in cluster
 4. Claude-sandbox automatically decrypts at runtime
 
-See [SOPS-SETUP.md](SOPS-SETUP.md) for complete guide.
+See [SOPS-setup.md](SOPS-setup.md) for complete guide.
 
 ### Telegram Notifications
 
@@ -474,6 +474,6 @@ bin/claude-sandbox remote "fix bug"
 
 - Review [README.md](../README.md) for full feature documentation
 - Check [TESTING.md](../k8s/TESTING.md) for testing procedures
-- Set up [SOPS encryption](SOPS-SETUP.md) for secrets
+- Set up [SOPS encryption](SOPS-setup.md) for secrets
 - Configure [Telegram notifications](../README.md#telegram-notifications)
-- Explore [Ruby version management](RUBY-VERSIONS.md)
+- Explore [Ruby version management](RUBY-VERSIONS-management.md)
