@@ -15,8 +15,14 @@ This workflow adds structure where it helps while trusting AI agents to think, a
 ## How It Works
 
 ```
+                    ┌──────────────────────────────────┐
+                    │         DISCOVERY (/discover)    │
+                    │  Challenge → Validate → type=idea│
+                    └──────────────┬───────────────────┘
+                                   │ (Graduate when ready)
+                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                         MASTER                               │
+│                   MASTER (/develop)                          │
 │  Assesses complexity, decides path, manages task lifecycle   │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -53,8 +59,16 @@ This workflow adds structure where it helps while trusting AI agents to think, a
 
 ### Task Tracking
 
-Uses `bd` (Beads) - a git-backed issue tracker. Tasks have sub-tasks representing workflow stages:
+Uses `bd` (Beads) - a git-backed issue tracker.
 
+**Ideas** (from `/discover`):
+```
+idea-abc (type=idea, status=blocked)
+└── Validated but not yet graduated to task
+    Graduate: bd update <id> --status=open --type=task
+```
+
+**Tasks** (from `/develop`):
 ```
 task-123 (parent)
 ├── task-123.1 (analyze)
@@ -63,22 +77,44 @@ task-123 (parent)
 └── task-123.4 (review)
 ```
 
-If analyst determines scope is too large, the task becomes an epic with child tasks. Children skip analyst (already scoped) and start at planner:
-
+**Epics** (when analyst determines scope is too large):
 ```
 epic-456 (converted from task)
 ├── task-457 (child) → planner → implementer → reviewer
 └── task-458 (child) → planner → implementer → reviewer
 ```
 
-### Usage
+### Commands
 
 ```bash
+# Validate ideas before they become work
+/discover <idea description>
+# - Challenges assumptions with critical questions
+# - Validates ROI (value vs effort)
+# - Creates type=idea (blocked) in beads if worthy
+# - Graduate to task when ready: bd update <id> --status=open --type=task
+
 # Start development workflow
-/develop <task description>
+/develop <task description or beads ID>
+# - Assesses complexity (simple vs complex)
+# - Routes to fast-track or full workflow
+# - Creates and manages beads tasks/subtasks
+# - Safety check: rejects type=idea (must graduate first)
 
 # Quick capture without starting development
 /bd-task <task description>
+# - Creates beads task quickly
+# - Doesn't start implementation
+
+# Generate debugging hypotheses
+/debug
+# - Analyzes unexpected behavior
+# - Suggests investigation paths
+
+# Customize keyboard shortcuts
+/keybindings-help
+# - Modify ~/.claude/keybindings.json
+# - Add chord bindings, rebind keys
 ```
 
 ## Sandbox Execution
@@ -238,8 +274,11 @@ Add project-specific guidance (coding standards, architecture decisions, busines
 │   ├── implementer.md # Code changes
 │   └── reviewer.md    # Quality & lessons
 ├── commands/
-│   ├── develop.md     # Full workflow command
-│   └── bd-task.md     # Quick capture command
+│   ├── discover.md    # Idea validation workflow
+│   ├── develop.md     # Full development workflow
+│   ├── bd-task.md     # Quick task capture
+│   ├── debug.md       # Debugging hypotheses
+│   └── keybindings-help.md  # Keyboard customization
 ├── claude-sandbox/    # Isolated execution environment
 │   ├── README.md      # Sandbox documentation
 │   ├── Dockerfile     # Container image
@@ -248,8 +287,14 @@ Add project-specific guidance (coding standards, architecture decisions, busines
 └── artifacts/
     ├── registry.json           # Artifact registry
     ├── lessons-learned.md      # Learning loop
+    ├── ideas/                  # Discovery workflow
+    │   ├── scratch/            # Raw ideas (git-ignored)
+    │   ├── analysis/           # Documented challenge analysis
+    │   └── README.md           # Ideas directory guide
     └── workflow-design/        # Workflow docs
-        └── WORKFLOW-DESIGN-RATIONALE.md
+        ├── WORKFLOW-DESIGN-RATIONALE.md
+        ├── WORKFLOW.md
+        └── DISCOVERY.md        # Idea validation process
 ```
 
 ## License
