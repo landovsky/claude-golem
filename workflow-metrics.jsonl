@@ -1,0 +1,9 @@
+{"event":"stage_start","timestamp":"2026-02-03T13:31:27Z","session_id":"test-session-456","agent_id":"test-agent-123","stage":"analyst","task":"test-task.2","model":null}
+{"event":"stage_end","timestamp":"2026-02-03T13:31:46Z","session_id":"test-session-456","agent_id":"test-agent-123","stage":"analyst","task":"test-task.2","duration_seconds":19,"status":"completed","tokens":{"input":null,"output":null,"cache_read":null,"cache_creation":null},"cost_usd":null,"model":null}
+{"event":"stage_start","timestamp":"2026-02-03T13:32:15Z","session_id":"unknown-session","agent_id":"unknown-agent","stage":"unknown","task":"unknown-task","model":null}
+{"event":"stage_start","timestamp":"2026-02-03T13:47:09Z","session_id":"sess-1","agent_id":"truncate-test","stage":"planner","task":"This is a really long task description that exceed","model":null}
+{"event":"stage_start","timestamp":"2026-02-03T13:48:15Z","session_id":"sess-2","agent_id":"no-task","stage":"implementer","task":"unknown-task","model":null}
+{"event":"stage_start","timestamp":"2026-02-03T13:48:24Z","session_id":"sess-2","agent_id":"no-task","stage":"implementer","task":"blocked-test","model":null}
+{"event":"stage_end","timestamp":"2026-02-03T13:48:26Z","session_id":"sess-2","agent_id":"no-task","stage":"implementer","task":"blocked-test","duration_seconds":2,"status":"blocked","tokens":{"input":null,"output":null,"cache_read":null,"cache_creation":null},"cost_usd":null,"model":null}
+{"event":"stage_start","timestamp":"2026-02-03T13:48:34Z","session_id":"sess-3","agent_id":"no-bd-comment","stage":"reviewer","task":"no-dot-just-text","model":null}
+{"event":"stage_end","timestamp":"2026-02-03T13:48:35Z","session_id":"sess-3","agent_id":"no-bd-comment","stage":"reviewer","task":"no-dot-just-text","duration_seconds":1,"status":"completed","tokens":{"input":null,"output":null,"cache_read":null,"cache_creation":null},"cost_usd":null,"model":null}
