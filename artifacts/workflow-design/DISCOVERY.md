@@ -158,11 +158,11 @@ Raw Idea → Challenge → Validate → Prioritize → Graduate (or Archive)
   - [What breaks if this fails?]
 ```
 
-**Action**: Create in beads as `type=idea` and mark as blocked:
+**Action**: Create in beads as `type=feature` and mark as blocked:
 
 ```bash
-bd create "Idea title" \
-  --type=idea \
+bd create "Feature title" \
+  --type=feature \
   --priority=2 \
   --description="Problem: [what]
 
@@ -183,11 +183,11 @@ Risks: [technical/execution/impact]
 Next steps: [what needs to happen to be ready]"
 
 # IMPORTANT: Mark as blocked to prevent accidental implementation
-bd update <idea-id> --status=blocked
-bd comments add <idea-id> "Blocked: Validated idea, not yet graduated. Unblock when ready to implement."
+bd update <feature-id> --status=blocked
+bd comments add <feature-id> "Blocked: Validated feature, not yet ready to implement. Unblock when ready to start work."
 ```
 
-**Why blocked?** Prevents accidentally passing `type=idea` to `/develop`. Ideas must be explicitly graduated to tasks.
+**Why blocked?** Prevents accidentally starting work before the feature is fully scoped and ready.
 
 **Decision Point**: If validation fails (low ROI, wrong time, high risk), don't create in beads. Just discard or defer.
 
@@ -201,17 +201,17 @@ bd comments add <idea-id> "Blocked: Validated idea, not yet graduated. Unblock w
 
 ```bash
 # Update priority as understanding evolves
-bd update <idea-id> --priority=1  # P1: High priority
+bd update <feature-id> --priority=1  # P1: High priority
 
-# List all ideas by priority
-bd list --type=idea --status=open
+# List all blocked features by priority
+bd list --type=feature --status=blocked
 
-# Mark as deferred (not closed, just not now)
-bd update <idea-id> --status=blocked
-bd comments add <idea-id> "Deferring: dependencies not ready"
+# Mark as deferred with additional context
+bd update <feature-id> --status=blocked
+bd comments add <feature-id> "Deferring: dependencies not ready"
 
-# Kill bad ideas (close them)
-bd close <idea-id> --reason="ROI too low after analysis"
+# Kill bad features (close them)
+bd close <feature-id> --reason="ROI too low after analysis"
 ```
 
 **Prioritization Matrix**:
@@ -231,17 +231,17 @@ Impact ↑
 
 **View priorities**:
 ```bash
-# High priority ideas ready to work on
-bd list --type=idea --priority=0,1 --status=open
+# High priority blocked features (validated but not yet ready)
+bd list --type=feature --priority=0,1 --status=blocked
 
-# All open ideas sorted by priority
-bd list --type=idea --status=open
+# All blocked features sorted by priority
+bd list --type=feature --status=blocked
 ```
 
 **Re-prioritize regularly** (weekly or when new ideas enter):
-- Review `bd list --type=idea`
+- Review `bd list --type=feature --status=blocked`
 - Update priorities based on current context
-- Close ideas that are no longer relevant
+- Close features that are no longer relevant
 
 ---
 
@@ -261,20 +261,20 @@ bd list --type=idea --status=open
 - [ ] Has clear acceptance criteria
 - [ ] Unknowns are acceptable (or spiked)
 
-### Graduate to Task
+### Graduate Feature
 
 ```bash
-# Unblock and convert idea to task
-bd update <idea-id> --status=open --type=task
+# Unblock feature when ready to implement
+bd update <feature-id> --status=open
 
-# Verify graduation
-bd show <idea-id>  # Now shows type=task, status=open
+# Verify ready
+bd show <feature-id>  # Now shows type=feature, status=open
 
 # Hand to /develop workflow
-/develop <idea-id>
+/develop <feature-id>
 ```
 
-**Why unblock?** Ideas are created as `status=blocked` to prevent accidental implementation. Graduation unblocks and converts to task.
+**Why unblock?** Features are created as `status=blocked` to prevent premature work. When ready to implement, unblock to signal readiness.
 
 **What happens next**:
 1. Master reads the beads task (which has all your validation context)
@@ -283,8 +283,8 @@ bd show <idea-id>  # Now shows type=task, status=open
 4. Work begins!
 
 **After completion**:
-- Master closes the beads task
-- Idea has graduated from concept → shipped feature
+- Master closes the beads feature
+- Feature has graduated from concept → shipped code
 
 ---
 
@@ -292,14 +292,15 @@ bd show <idea-id>  # Now shows type=task, status=open
 
 **Early stages** (Raw, Challenged): Lightweight markdown files - not persisted unless valuable
 
-**Validated stage**: Create in beads as `type=idea`
-- `bd create "Title" --type=idea --priority=2 --description="..."`
+**Validated stage**: Create in beads as `type=feature` with `status=blocked`
+- `bd create "Title" --type=feature --priority=2 --description="..."`
+- `bd update <id> --status=blocked` (prevent premature work)
 - Tracked, prioritized, git-backed
-- Filtered from task lists: `bd list --type=task` (no ideas shown)
+- Filtered from ready work: `bd ready` (shows only unblocked items)
 
-**Ready stage**: Convert to task and hand to `/develop`
-- `bd update <id> --type=task`
-- Now it's work, not just an idea
+**Ready stage**: Unblock and hand to `/develop`
+- `bd update <id> --status=open`
+- Now it's ready to implement
 - Master's `/develop` workflow takes over
 
 ### Directory Structure
@@ -315,8 +316,8 @@ artifacts/
 **Why this works**:
 - 90% of raw ideas die quickly (don't persist them)
 - Challenged ideas with valuable analysis get documented
-- Validated ideas live in beads (`type=idea`)
-- Ready ideas become tasks in beads (`type=task`)
+- Validated features live in beads (`type=feature, status=blocked`)
+- Ready features get unblocked (`status=open`)
 - Single source of truth (beads), no dual systems
 
 ---
@@ -334,7 +335,7 @@ Facilitate the validation workflow with an interactive command:
 2. Asks challenge questions interactively
 3. Guides through validation scorecard
 4. Calculates ROI score
-5. If validated: creates `bd` issue with `--type=idea`
+5. If validated: creates `bd` issue with `--type=feature --status=blocked`
 6. If not validated: explains why and discards
 7. Suggests next steps (prioritize, defer, or kill)
 
@@ -350,29 +351,29 @@ Facilitate the validation workflow with an interactive command:
 
 ### Invoking `/develop`:
 ```bash
-# Graduate idea to task
-bd update .claude-xyz --type=task
+# Unblock feature when ready to implement
+bd update .claude-xyz --status=open
 
 # Start development workflow
 /develop .claude-xyz
 ```
 
-Master reads the beads task, sees all the validation context from discovery, and assesses complexity with full background.
+Master reads the beads feature, sees all the validation context from discovery, and assesses complexity with full background.
 
 ### After completion:
-- Master closes beads task (now type=task)
-- Idea has successfully graduated from concept → working code
+- Master closes beads feature
+- Feature has successfully graduated from concept → working code
 
 ---
 
 ## Rules
 
 1. **No beads until validated** - Raw/challenged ideas stay ephemeral
-2. **type=idea until ready** - Use `bd create --type=idea` only after validation
+2. **type=feature, status=blocked until ready** - Use `bd create --type=feature` only after validation, mark as blocked
 3. **Challenge everything** - If you can't articulate the problem, don't persist it
 4. **Kill bad ideas early** - Discarding is success, not failure
 5. **Re-prioritize often** - P0 yesterday might be P3 today
-6. **Graduate consensually** - Convert `type=idea` → `type=task` when truly ready
+6. **Graduate consensually** - Unblock (`status=open`) when truly ready to implement
 7. **Keep it lightweight** - Most thinking happens in your head, not in files
 
 ---
@@ -381,9 +382,9 @@ Master reads the beads task, sees all the validation context from discovery, and
 
 You're doing this right if:
 - ✅ Most ideas get challenged and archived (filtering works!)
-- ✅ Only high-ROI ideas graduate to `/develop`
+- ✅ Only high-ROI features graduate to `/develop`
 - ✅ You spend more time thinking, less time reworking
-- ✅ Beads stays clean (work only, not ideas)
+- ✅ Blocked features act as a backlog, not clutter
 - ✅ You feel confident about what you're building
 
 ---
@@ -409,7 +410,7 @@ You're doing this right if:
 ### Week 2: Create in Beads (Blocked)
 ```bash
 bd create "Build read-only web viewer for beads" \
-  --type=idea \
+  --type=feature \
   --priority=1 \
   --description="Problem: Team members without CLI access can't see task status
 
@@ -430,45 +431,45 @@ Next: Design simple web UI, plan tech stack"
 
 # Returns: .claude-abc
 
-# Mark as blocked until graduated
+# Mark as blocked until ready to implement
 bd update .claude-abc --status=blocked
-bd comments add .claude-abc "Blocked: Validated idea, not yet ready to implement"
+bd comments add .claude-abc "Blocked: Validated feature, not yet ready to implement"
 ```
 
 ### Week 3: Prioritize
 ```bash
-# List ideas (including blocked ones)
-bd list --type=idea
+# List features (including blocked ones)
+bd list --type=feature
 # Shows: .claude-abc (P1, blocked), .claude-xyz (P2, blocked), .claude-def (P2, blocked)
 # Decide to work on .claude-abc first
 ```
 
 ### Week 4: Graduate & Develop
 ```bash
-# Ready to work on it - unblock and convert to task
-bd update .claude-abc --status=open --type=task
+# Ready to work on it - unblock
+bd update .claude-abc --status=open
 
-# Verify graduation
-bd show .claude-abc  # type=task, status=open
+# Verify ready
+bd show .claude-abc  # type=feature, status=open
 
 # Start development workflow
 /develop .claude-abc
 
-# Master assesses: "Simple task, specs complete"
+# Master assesses: "Simple feature, specs complete"
 # Master fast-tracks implementation
 ```
 
 ### Week 5: Complete
 - Work is done, tested, merged
 - Master closes `.claude-abc`
-- Idea successfully graduated from concept → shipped feature
+- Feature successfully graduated from concept → shipped code
 
 ---
 
 ## Anti-Patterns to Avoid
 
-❌ **Idea hoarding**: Keeping 100 ideas in beads as `type=idea`
-  → Close ruthlessly, keep open ideas under 20
+❌ **Feature hoarding**: Keeping 100 blocked features in beads
+  → Close ruthlessly, keep blocked features under 20
 
 ❌ **Analysis paralysis**: Spending weeks validating
   → Time-box validation (1-2 hours max per idea)
@@ -476,14 +477,14 @@ bd show .claude-abc  # type=task, status=open
 ❌ **Priority inflation**: Everything is P0
   → Only 1-3 items can be P0 at a time
 
-❌ **Skipping validation**: Creating `type=task` directly
-  → Start as `type=idea`, validate, then convert to `type=task`
+❌ **Skipping validation**: Creating `type=feature status=open` directly
+  → Start with validation, create as blocked, then unblock when ready
 
-❌ **No re-prioritization**: Set-and-forget idea priorities
-  → Review `bd list --type=idea` weekly
+❌ **No re-prioritization**: Set-and-forget feature priorities
+  → Review `bd list --type=feature --status=blocked` weekly
 
 ❌ **Persisting too early**: Creating beads for raw ideas
-  → Only create `type=idea` after validation passes
+  → Only create `type=feature` after validation passes
 
 ---
 
@@ -491,13 +492,13 @@ bd show .claude-abc  # type=task, status=open
 
 1. Create directory structure (`artifacts/ideas/scratch/`, `artifacts/ideas/analysis/`)
 2. Add `scratch/` to `.gitignore` (don't commit raw ideas)
-3. Build `/discover` skill command
+3. Build `/validate` skill command
 4. Test with 1-2 ideas:
    - Challenge them
    - Validate ROI
-   - Create as `type=idea` if worthy
-5. Prioritize validated ideas
-6. Graduate 1 idea to `type=task` and run `/develop`
+   - Create as `type=feature --status=blocked` if worthy
+5. Prioritize validated features
+6. Graduate 1 feature to `status=open` and run `/develop`
 7. Iterate on the process
 
 **Remember**: This is about FOCUS. Say no to 90% of ideas so you can say yes to the 10% that matter.

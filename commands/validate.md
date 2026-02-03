@@ -240,12 +240,12 @@ Based on challenge + validation, make a recommendation:
    This idea deserves to be tracked.
    ```
 
-2. Ask: "Should I create this in beads as `type=idea`?"
+2. Ask: "Should I create this in beads as a feature?"
 
 3. If yes, create in beads:
    ```bash
    bd create "[Title]" \
-     --type=idea \
+     --type=feature \
      --priority=[0-4 based on ROI] \
      --description="Problem: [what]
 
@@ -265,9 +265,9 @@ Based on challenge + validation, make a recommendation:
 
    Next steps: [what needs to happen before ready to implement]"
 
-   # Mark as blocked until graduated
-   bd update <idea-id> --status=blocked
-   bd comments add <idea-id> "Blocked: Validated idea, not yet graduated to task. Run 'bd update <id> --status=open --type=task' when ready to implement."
+   # Mark as blocked until ready to implement
+   bd update <feature-id> --status=blocked
+   bd comments add <feature-id> "Blocked: Validated feature, not yet ready to implement. Run 'bd update <id> --status=open' when ready to start work."
    ```
 
 4. Update scratch file with beads ID, move to analysis if valuable:
@@ -281,7 +281,7 @@ Based on challenge + validation, make a recommendation:
 
    Next steps:
    - Review with `bd show .claude-xxx`
-   - When ready to work: `bd update .claude-xxx --status=open --type=task`
+   - When ready to work: `bd update .claude-xxx --status=open`
    - Then start development: `/develop .claude-xxx`
    ```
 
@@ -395,11 +395,11 @@ Capture new ideas with:
 
 ## Integration with `/develop`
 
-After an idea is validated and created in beads:
+After a feature is validated and created in beads:
 
 ```bash
 # When ready to work on it
-bd update .claude-xyz --status=open --type=task
+bd update .claude-xyz --status=open
 
 # Start development workflow
 /develop .claude-xyz
@@ -422,7 +422,7 @@ Master will read the beads task, see all validation context, and route appropria
 /validate idea-slug
 
 # After validation, graduate to work
-bd update .claude-xyz --status=open --type=task
+bd update .claude-xyz --status=open
 /develop .claude-xyz
 ```
 
