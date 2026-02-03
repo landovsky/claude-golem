@@ -140,3 +140,21 @@
 ### Process improvements
 - **Spec should clarify user-specific vs project files**: The spec listed "Update settings.json with hook configuration" as a requirement, but settings.json is user-specific (in .gitignore). The implementer correctly handled this by documenting the manual setup, but the spec could have been clearer by noting "(user must add manually - file not committed)".
 - **Include conditional logic for edge cases in spec**: The implementer added a smart check for task ID format before posting bd comments (only posts if task contains `.`). This prevents errors but was not in the spec. Analyst should consider defensive conditions for external service calls.
+
+## 2026-02-03 - .claude-6t5 - Usage Metrics Phase 2 (OTLP Token Data)
+
+### What worked well
+- **grep + jq pipeline for JSONL parsing**: The pattern `grep '"type":"assistant"' "$file" | jq -s '[.[] | .field] | add // 0'` efficiently filters and aggregates data from large transcript files. grep pre-filters for speed, jq handles JSON safely. See `/Users/tomas/.claude/hooks/metrics-end.sh` lines 79-89.
+- **Case statement with glob patterns for model pricing**: Using `*opus-4.5*|*opus-4-5*` style patterns handles model name variations (dashes vs dots) without complex regex. See lines 98-112 in metrics-end.sh.
+- **awk for floating-point cost calculation**: Bash cannot do decimals. The `awk -v var="$val" 'BEGIN { printf "%.4f", calculation }'` pattern is portable and precise. See lines 115-125.
+- **Zero-to-null conversion preserves schema**: The jq expression `($input_tokens | if . == 0 then null else . end)` maintains backward compatibility - existing queries expecting null for "no data" still work.
+- **Planner's detailed implementation approach**: The plan included exact line numbers for insertion points, complete code blocks, and step-by-step guidance. The implementer followed it exactly with zero deviations.
+
+### What to avoid
+- **Empty grep output piped to jq returns empty string, not null**: When parsing `grep '"type":"assistant"' "$file" | tail -1 | jq -r '.field // "null"'`, if grep returns nothing, jq gets empty input and outputs empty string, not "null". This only matters for rare edge cases (transcript with no assistant messages) but could cause unexpected behavior if comparing to "null" string.
+- **Fix**: Add a fallback: `result=$(... | jq -r '...' 2>/dev/null); [[ -z "$result" ]] && result="null"`
+
+### Process improvements
+- **Multi-phase features benefit from incremental testing**: Phase 1 established the JSONL schema with null values. Phase 2 only changed the values, not the schema. This made validation simple: just verify the schema matches. Plan multi-phase features with "schema first, data later" when possible.
+- **Transcript format is undocumented API**: The agent_transcript_path JSONL format is not officially documented by Anthropic. The spec correctly identified this risk and the implementation uses defensive parsing. Future features relying on transcript parsing should include explicit versioning or format detection.
+- **Cost precision requirements should be explicit**: The spec noted "4 decimal places" for cost. This drove the awk `printf "%.4f"` decision. Precision requirements should always be in the spec to avoid ambiguity.
