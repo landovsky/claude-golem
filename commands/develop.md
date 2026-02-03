@@ -226,30 +226,9 @@ Include in your handoff to each agent:
 - [filename]: [description] (usage: [always|decide])
 ```
 
-## Usage Metrics Collection (Phase 1)
+## Usage Metrics
 
-The workflow automatically collects execution metrics for each stage (analyst, planner, implementer, reviewer).
-
-**Data stored:**
-- `.claude/workflow-metrics.jsonl` - Full metrics log (git-tracked)
-- BD comments on subtasks - Human-readable summary per stage
-
-**Query examples:**
-```bash
-# All analyst stages
-jq 'select(.stage=="analyst")' .claude/workflow-metrics.jsonl
-
-# Failed/blocked stages
-jq 'select(.status!="completed")' .claude/workflow-metrics.jsonl
-
-# Average duration by stage
-jq -s 'group_by(.stage) | map({stage: .[0].stage, avg_duration: (map(.duration_seconds) | add / length)})' .claude/workflow-metrics.jsonl
-```
-
-**Current limitations (Phase 1):**
-- Token counts and costs are mock values (null) - real OTLP data in Phase 2
-- Fast-track tasks (master handles directly) not tracked - only subagent stages tracked
-- Concurrent subagents not tested - sequential workflow only
+**Note:** SubagentStart/SubagentStop hooks automatically collect execution metrics (tokens, cost, duration) for workflow stages. This happens transparently - you don't need to do anything. Metrics are written to `.claude/workflow-metrics.jsonl` and posted as BD comments on subtasks.
 
 ## Rules
 
