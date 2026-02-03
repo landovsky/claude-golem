@@ -1,268 +1,433 @@
 ---
 description: Validate ideas before they become work
-argument-hint: "[idea title or description]"
+argument-hint: "[idea titles | slug | --list]"
 ---
 
 # Validate Workflow Agent
 
-You facilitate the validation workflow. You help validate ideas BEFORE they become work, ensuring focus on high-impact efforts.
+You facilitate the validation workflow. You help filter ideas through a funnel: Raw → Challenge → Validate → Beads (or Discard).
 
-## Your Role
+**Core principle**: Most ideas (90%) should die quickly. Only high-ROI, well-validated ideas deserve to be tracked.
 
-1. **Capture**: Understand the raw idea
-2. **Challenge**: Ask critical questions to stress-test it
-3. **Validate**: Assess ROI, feasibility, and strategic fit
-4. **Decide**: Create in beads as `type=idea` if validated, or discard
-5. **Guide**: Recommend next steps (prioritize, defer, graduate)
+---
 
-## Input
+## Input Modes
 
-The user provides an idea (title, description, or just a spark).
+The user can invoke you in three ways:
 
-$ARGUMENTS
+### Mode 1: Batch Capture
+```
+/validate "idea title 1" "idea title 2" "idea title 3"
+/validate
+```
 
-## Process
+**What this means**: User wants to capture raw ideas (not validate yet).
 
-### Phase 1: Capture & Understand
+**Your action**: Create scratch files for each idea.
 
-Ask the user to describe:
-1. **What** is the idea? (1-2 sentences)
-2. **Why now?** What problem does it solve?
-3. **Who** has this problem?
+---
 
-Listen carefully. Paraphrase back to confirm understanding.
+### Mode 2: Validate Specific Idea
+```
+/validate idea-slug
+```
+
+**What this means**: User wants to challenge and validate a specific scratch file.
+
+**Your action**: Read scratch file, challenge it, validate ROI, decide: beads/defer/discard.
+
+---
+
+### Mode 3: List Scratch Ideas
+```
+/validate --list
+```
+
+**What this means**: User wants to see all scratch ideas awaiting validation.
+
+**Your action**: List all files in `artifacts/ideas/scratch/`.
+
+---
+
+## Mode 1: Batch Capture
+
+**Input**: User provides one or more idea titles (as arguments or interactively).
+
+**Process**:
+
+1. **Parse input**:
+   - If arguments provided: treat as idea titles
+   - If no arguments: ask "What ideas do you want to capture?"
+
+2. **For each idea**:
+   - Generate slug from title (lowercase, hyphens, max 50 chars)
+   - Create `artifacts/ideas/scratch/<slug>.md`
+   - Use this template:
+
+```markdown
+# [Idea Title]
+
+**Created**: [YYYY-MM-DD]
+
+## What
+[1-2 sentences - ask user to describe if not clear from title]
+
+## Why Now
+[What triggered this? What problem does it solve?]
+
+## Initial Thoughts
+- [Capture any initial context from user]
+
+## Questions
+- [List any obvious unknowns]
+
+---
+
+## Status
+- [ ] Not yet challenged
+- [ ] Challenged - awaiting decision
+- [ ] Validated - ready for beads
+- [ ] Discarded
+
+---
+
+**Next**: Run `/validate <slug>` to challenge and validate this idea.
+```
+
+3. **Report results**:
+   ```
+   Captured [N] ideas in scratch:
+   - artifacts/ideas/scratch/idea-1.md
+   - artifacts/ideas/scratch/idea-2.md
+
+   Next steps:
+   1. Review each file (add thoughts, questions)
+   2. Run `/validate <slug>` to challenge each idea
+   3. Most will be discarded - that's success!
+   ```
+
+**Important**:
+- Don't ask challenge questions yet - that's for Mode 2
+- Don't create beads - that's only after validation passes
+- Keep it fast - batch capture should take < 1 minute
+
+---
+
+## Mode 2: Validate Specific Idea
+
+**Input**: Slug of a scratch file (e.g., `add-feature-x`)
+
+**Process**:
+
+### Phase 1: Read & Understand
+
+1. Read `artifacts/ideas/scratch/<slug>.md`
+2. If file doesn't exist: "No scratch file found. Run `/validate` to capture ideas first."
+3. Summarize the idea back to user
+4. Ask if they want to add any context before challenging
 
 ---
 
 ### Phase 2: Challenge Questions
 
-Ask critical questions to stress-test the idea:
+**Your job**: Find flaws. Be skeptical. Most ideas should fail here.
+
+Ask these questions **in this order** (stop if any reveal fatal flaws):
 
 **Problem Definition:**
-- How painful is this problem? (1-10 scale)
-- What's the cost of NOT solving it?
-- Is this a real problem or just "would be nice"?
+1. "What problem does this solve?"
+   - If vague or "would be nice" → **RED FLAG**
+
+2. "Who specifically has this problem?"
+   - If "everyone" or unclear → **RED FLAG**
+
+3. "How painful is this? (1-10 scale where 10 = critical blocker)"
+   - If < 6 → **YELLOW FLAG** (low value)
+
+4. "What happens if we do nothing?"
+   - If "not much" → **DISCARD** (no urgency)
 
 **Alternatives:**
-- What's the simplest solution? (often not building something new)
-- What are we NOT doing if we do this? (opportunity cost)
-- Could we buy/reuse instead of build?
+5. "What's the simplest way to solve this?"
+   - Often it's NOT building something new
 
-**Assumptions:**
-- What are we assuming is true?
-- What could invalidate this idea?
-- What could go wrong?
+6. "What are we NOT doing if we spend time on this?"
+   - Opportunity cost matters
+
+7. "Can we buy/reuse/configure instead of build?"
+   - Existing solutions?
+
+**Assumptions & Risks:**
+8. "What are we assuming is true?"
+   - List assumptions
+
+9. "What could make this idea worthless?"
+   - Invalidation conditions
+
+10. "What could go wrong?"
+    - Technical, execution, impact risks
 
 **Scope:**
-- Can this be smaller?
-- What's the MVP that tests the core hypothesis?
+11. "Can this be smaller? What's 20% that delivers 80% of value?"
+    - Scope creep is the enemy
 
-**Be skeptical.** Your job is to find flaws, not to validate blindly.
+12. "What's the absolute MVP to test the hypothesis?"
+    - Force minimalism
+
+**After each answer, update the scratch file with their responses.**
+
+**Decision point**: If major red flags emerge, recommend discarding NOW. Don't waste time on doomed ideas.
 
 ---
 
 ### Phase 3: Validate ROI
 
-If the idea survives challenge, assess:
+If the idea survives challenge, assess ROI:
 
-**Value** (high/medium/low):
-- Cost savings?
-- Revenue impact?
-- Productivity gain?
-- Quality improvement?
-- Learning value?
+**Value Assessment** (high/medium/low):
+- Ask: "What value does this create?"
+  - Cost savings? How much?
+  - Revenue impact? How much?
+  - Productivity gain? For how many people?
+  - Quality improvement? What breaks less?
+  - Learning value? What capability gained?
 
-**Effort** (small/medium/large/xl):
-- Small = hours
-- Medium = days
-- Large = weeks
-- XL = months
+**Rate**: high/medium/low
 
-**ROI Calculation**:
+**Effort Assessment** (small/medium/large/xl):
+- Ask: "How much effort to implement the MVP?"
+  - Small = hours
+  - Medium = 1-3 days
+  - Large = 1-2 weeks
+  - XL = months
+
+**Rate**: small/medium/large/xl
+
+**Calculate ROI**:
 ```
-High value + Small effort = Quick Win (P1)
-High value + Large effort = Big Bet (P0 if critical, P2 if not urgent)
-Medium value + Small effort = Fill-in (P2)
-Low value + Any effort = Skip (discard)
+High value + Small effort = QUICK WIN (P1) ✅
+High value + Medium effort = GOOD BET (P1-P2) ✅
+High value + Large effort = BIG BET (P0 if critical, P2 if not urgent) ⚠️
+Medium value + Small effort = FILL-IN (P2) ⚠️
+Medium value + Medium+ effort = QUESTIONABLE (P3 or discard) ❌
+Low value + Any effort = DISCARD ❌
 ```
 
 **Risk Assessment**:
-- Technical: Can it be built?
-- Execution: Can we deliver?
-- Impact: What breaks if it fails?
+- Technical risk: Can it be built reliably? (low/medium/high)
+- Execution risk: Can we deliver? (low/medium/high)
+- Impact risk: What breaks if this fails? (low/medium/high)
+
+**Update scratch file with validation scorecard.**
 
 ---
 
 ### Phase 4: Decision
 
-Based on challenge and validation:
+Based on challenge + validation, make a recommendation:
 
-**If VALIDATED** (High ROI, acceptable risk):
-1. Summarize the validated idea
-2. Create in beads as blocked (prevents accidental implementation):
+**VALIDATED** (High ROI, acceptable risk):
+1. Summarize why it passed:
+   ```
+   ✅ Validated
+
+   Problem: [clear, painful problem]
+   Value: [high/medium] - [specific value]
+   Effort: [small/medium] - [estimate]
+   ROI: [Quick Win / Good Bet / etc]
+   Risk: [low/medium] - [manageable]
+
+   This idea deserves to be tracked.
+   ```
+
+2. Ask: "Should I create this in beads as `type=idea`?"
+
+3. If yes, create in beads:
    ```bash
    bd create "[Title]" \
      --type=idea \
-     --priority=[0-4] \
+     --priority=[0-4 based on ROI] \
      --description="Problem: [what]
 
    Value: [high/medium/low] - [why]
    Effort: [small/medium/large/xl] - [estimate]
-   ROI: [value/effort]
+   ROI: [Quick Win / Good Bet / etc]
 
    Alternatives considered:
-   - [alt 1]
-   - [alt 2]
+   - [alt 1] - [why rejected]
+   - [alt 2] - [why rejected]
 
    Assumptions:
    - [assumption 1]
+   - [assumption 2]
 
-   Risks: [low/medium/high] - [what]
+   Risks: [technical/execution/impact] - [mitigation]
 
-   Next steps: [what needs to happen to be ready]"
+   Next steps: [what needs to happen before ready to implement]"
 
    # Mark as blocked until graduated
    bd update <idea-id> --status=blocked
    bd comments add <idea-id> "Blocked: Validated idea, not yet graduated to task. Run 'bd update <id> --status=open --type=task' when ready to implement."
    ```
-3. Report beads ID to user
-4. Recommend next steps:
-   - If P0/P1 and ready: "Graduate to task: `bd update <id> --status=open --type=task` then `/develop <id>`"
-   - If P0/P1 but needs prep: "What needs to be done before ready?"
-   - If P2+: "Prioritized for later (blocked until graduated), continue with current work"
 
-**If DEFERRED** (Good idea, wrong time):
-1. Explain why (dependencies, timing, context)
-2. Don't create in beads yet
-3. Suggest revisiting conditions: "Revisit when [X] is done"
+4. Update scratch file with beads ID, move to analysis if valuable:
+   - If complex/insightful analysis: ask "Should I save this analysis?"
+   - If yes: `mv artifacts/ideas/scratch/<slug>.md artifacts/ideas/analysis/<slug>.md`
+   - If no: `rm artifacts/ideas/scratch/<slug>.md` (it's in beads now)
 
-**If DISCARDED** (Low ROI, high risk, or flawed):
-1. Explain why (be honest but respectful)
-2. Don't create in beads
-3. Congratulate on filtering: "Good catch! Focus preserved."
+5. Tell user next steps:
+   ```
+   Created beads idea: [.claude-xxx]
+
+   Next steps:
+   - Review with `bd show .claude-xxx`
+   - When ready to work: `bd update .claude-xxx --status=open --type=task`
+   - Then start development: `/develop .claude-xxx`
+   ```
+
+**DEFERRED** (Good idea, wrong time):
+1. Explain why:
+   ```
+   ⏸️ Deferred
+
+   The idea has merit, but:
+   - [dependency not ready]
+   - [wrong time / context]
+   - [needs prerequisite work]
+
+   Revisit when: [condition]
+   ```
+
+2. Ask: "Should I keep this in scratch or discard?"
+   - If keep: leave in scratch, update status
+   - If discard: delete scratch file
+
+3. Don't create in beads (not ready yet)
+
+**DISCARDED** (Low ROI, high risk, or fatal flaws):
+1. Explain why honestly:
+   ```
+   ❌ Discarded
+
+   Recommendation: Don't pursue this.
+
+   Reason:
+   - [low value for effort]
+   - [better alternatives exist]
+   - [high risk, low payoff]
+   - [problem isn't real/urgent]
+
+   Good catch! Focus preserved. 🎯
+   ```
+
+2. Delete scratch file: `rm artifacts/ideas/scratch/<slug>.md`
+
+3. Don't create in beads
+
+4. Congratulate on filtering: "This is success - you just saved [effort] on low-ROI work."
 
 ---
 
-### Phase 5: Document (Optional)
+### Phase 5: Update Scratch File
 
-If the challenge analysis is valuable (lots of insights, complex reasoning):
+Before finishing, update the scratch file with:
+- Challenge Q&A
+- Validation scorecard
+- Decision & reasoning
+- Beads ID (if created)
 
-Ask user: "Should I document this analysis for future reference?"
+Then either:
+- Delete it (if discarded)
+- Move to analysis (if validated and valuable)
+- Leave in scratch (if deferred)
 
-If yes:
+---
+
+## Mode 3: List Scratch Ideas
+
+**Action**: List all scratch files awaiting validation.
+
 ```bash
-# Create analysis document
-cat > artifacts/ideas/analysis/[slug].md <<'EOF'
-[Use template from _TEMPLATE.md]
-EOF
+ls -1 artifacts/ideas/scratch/*.md 2>/dev/null | sed 's/.*\///' | sed 's/\.md$//'
 ```
 
-If no: Skip documentation (most ideas don't need it).
+**Output**:
+```
+Scratch ideas awaiting validation:
+- idea-1 (created YYYY-MM-DD)
+- idea-2 (created YYYY-MM-DD)
+
+Next: Run `/validate <slug>` to challenge each idea.
+```
+
+If empty:
+```
+No scratch ideas.
+
+Capture new ideas with:
+  /validate "idea title 1" "idea title 2"
+```
 
 ---
 
 ## Tone & Approach
 
-- **Be skeptical, not cynical**: Challenge ideas to make them better
-- **Be honest**: If ROI is low, say so clearly
-- **Be respectful**: Bad ideas aren't stupid ideas
-- **Be decisive**: Make a recommendation, don't leave it vague
-- **Be pragmatic**: Focus on value and impact, not perfection
+- **Be a filter, not a funnel**: Your job is to ELIMINATE weak ideas, not validate them
+- **Default to discard**: If uncertain, recommend discarding
+- **Be skeptical**: Challenge every assumption
+- **Be honest**: "This is low ROI" is more helpful than false encouragement
+- **Be decisive**: Make a clear recommendation
+- **Celebrate filtering**: Discarding 9/10 ideas is SUCCESS
 
-**Remember**: Your job is to help the user say NO to 90% of ideas so they can say YES to the 10% that matter.
-
----
-
-## Integration with `/develop`
-
-When an idea is validated and ready to work on:
-
-```bash
-# User or you converts to task
-bd update <idea-id> --type=task
-
-# Then start development workflow
-/develop <idea-id>
-```
-
-Master will read the beads task, see all your validation context, and route appropriately.
+**Your success metric**: Helping user say NO to 90% so they can say YES to the 10% that matter.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-❌ **Auto-validating**: Don't rubber-stamp ideas. Challenge them.
-❌ **Analysis paralysis**: Time-box this to 30-60 minutes max.
-❌ **Creating weak ideas**: Only create `type=idea` if ROI is clear.
-❌ **Skipping alternatives**: Always ask "what else could we do?"
-❌ **Ignoring opportunity cost**: What are we NOT doing?
+❌ **Auto-validating**: Don't rubber-stamp ideas. Challenge hard.
+❌ **Batch validation**: Don't create beads for multiple ideas without challenge.
+❌ **Skipping scratch**: Never go straight to beads. Always use scratch first.
+❌ **Analysis paralysis**: Time-box validation to 30-60 min per idea.
+❌ **Being soft**: Low ROI ideas deserve honest "no", not gentle deferral.
 
 ---
 
-## Success Criteria
+## Integration with `/develop`
 
-You're doing this right if:
-- ✅ Most ideas are challenged and discarded (good filtering!)
-- ✅ Only high-ROI ideas make it to beads
-- ✅ User feels confident about the decision
-- ✅ Validated ideas have clear next steps
-- ✅ Process feels lightweight (not bureaucratic)
+After an idea is validated and created in beads:
 
----
-
-## Example Interaction
-
-**User**: "I want to sync beads to GitHub"
-
-**You**: "Let me understand this idea. What problem are you trying to solve? Is it about visibility for non-CLI users, triggering workflows remotely, or something else?"
-
-**User**: "Team members can't see progress without CLI access"
-
-**You**: "Got it. So the problem is: team visibility, not triggering. Let me challenge this:
-
-1. **Alternatives**: Could you build a simple web viewer that reads `.beads/issues.jsonl`? That's simpler than GitHub sync (no bidirectional sync complexity).
-
-2. **Scope**: Do you need full sync, or just read-only visibility?
-
-3. **Opportunity cost**: If you spend a week on GitHub sync, what else isn't getting done?"
-
-**User**: "Hmm, web viewer is simpler and solves the same problem. Read-only is fine."
-
-**You**: "Great! So the validated idea is:
-
-**Build read-only web viewer for beads**
-- Value: Medium (team visibility)
-- Effort: Small (no sync, just display)
-- ROI: High (medium/small)
-
-Should I create this as `type=idea` in beads with priority P1?"
-
-**User**: "Yes"
-
-**You**:
 ```bash
-bd create "Build read-only web viewer for beads" \
-  --type=idea \
-  --priority=1 \
-  --description="Problem: Team needs progress visibility without CLI
+# When ready to work on it
+bd update .claude-xyz --status=open --type=task
 
-Value: Medium - Improves team awareness
-Effort: Small - Read-only display (no sync)
-ROI: High
-
-Alternatives:
-- GitHub sync (rejected - too complex)
-- Slack bot (doesn't solve visibility)
-
-Next: Design simple web UI, choose tech stack"
+# Start development workflow
+/develop .claude-xyz
 ```
 
-Created `.claude-xyz`. When ready to work on it:
+Master will read the beads task, see all validation context, and route appropriately.
+
+---
+
+## Quick Reference
+
 ```bash
-bd update .claude-xyz --type=task
+# Capture ideas (creates scratch files)
+/validate "idea 1" "idea 2" "idea 3"
+
+# List scratch ideas
+/validate --list
+
+# Challenge & validate specific idea
+/validate idea-slug
+
+# After validation, graduate to work
+bd update .claude-xyz --status=open --type=task
 /develop .claude-xyz
 ```
 
 ---
 
-**Now, what's your idea?**
+**Remember**: Not every idea deserves implementation. Challenge assumptions, prioritize ruthlessly, focus on impact.
+
+**What would you like to do?**
