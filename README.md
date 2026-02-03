@@ -2,6 +2,27 @@
 
 A structured workflow for AI-assisted development that ensures due process (specify → plan → implement → review) while not over-processing simple tasks. Includes optional isolated sandbox environments for autonomous execution.
 
+## Table of Contents
+
+- [The Problem](#the-problem)
+- [How It Works](#how-it-works)
+  - [Agents](#agents)
+  - [Task Tracking](#task-tracking)
+  - [Commands](#commands)
+- [Sandbox Execution](#sandbox-execution)
+- [Design Philosophy](#design-philosophy)
+- [Known Problems](#known-problems)
+- [Artifacts System](#artifacts-system)
+  - [Structure](#structure)
+  - [Registry Format](#registry-format)
+  - [How Agents Use Artifacts](#how-agents-use-artifacts)
+  - [The Learning Loop](#the-learning-loop)
+  - [Creating Custom Artifacts](#creating-custom-artifacts)
+- [Installation](#installation)
+  - [Prerequisites](#prerequisites)
+- [Files](#files)
+- [License](#license)
+
 ## The Problem
 
 When using AI for development, you face a tension:
@@ -15,12 +36,6 @@ This workflow adds structure where it helps while trusting AI agents to think, a
 ## How It Works
 
 ```
-                    ┌──────────────────────────────────┐
-                    │         DISCOVERY (/discover)    │
-                    │  Challenge → Validate → type=idea│
-                    └──────────────┬───────────────────┘
-                                   │ (Graduate when ready)
-                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   MASTER (/develop)                          │
 │  Assesses complexity, decides path, manages task lifecycle   │
@@ -59,16 +74,8 @@ This workflow adds structure where it helps while trusting AI agents to think, a
 
 ### Task Tracking
 
-Uses `bd` (Beads) - a git-backed issue tracker.
+Uses `bd` (Beads) - a git-backed issue tracker. Tasks have sub-tasks representing workflow stages:
 
-**Ideas** (from `/discover`):
-```
-idea-abc (type=idea, status=blocked)
-└── Validated but not yet graduated to task
-    Graduate: bd update <id> --status=open --type=task
-```
-
-**Tasks** (from `/develop`):
 ```
 task-123 (parent)
 ├── task-123.1 (analyze)
@@ -77,7 +84,8 @@ task-123 (parent)
 └── task-123.4 (review)
 ```
 
-**Epics** (when analyst determines scope is too large):
+If analyst determines scope is too large, the task becomes an epic with child tasks:
+
 ```
 epic-456 (converted from task)
 ├── task-457 (child) → planner → implementer → reviewer
@@ -87,34 +95,19 @@ epic-456 (converted from task)
 ### Commands
 
 ```bash
-# Validate ideas before they become work
-/discover <idea description>
-# - Challenges assumptions with critical questions
-# - Validates ROI (value vs effort)
-# - Creates type=idea (blocked) in beads if worthy
-# - Graduate to task when ready: bd update <id> --status=open --type=task
-
-# Start development workflow
+# Start development workflow (primary command)
 /develop <task description or beads ID>
-# - Assesses complexity (simple vs complex)
-# - Routes to fast-track or full workflow
-# - Creates and manages beads tasks/subtasks
-# - Safety check: rejects type=idea (must graduate first)
+# Assesses complexity, routes to fast-track or full workflow,
+# creates and manages beads tasks/subtasks
 
-# Quick capture without starting development
+# Quick task capture
 /bd-task <task description>
-# - Creates beads task quickly
-# - Doesn't start implementation
+# Capture work without starting implementation
 
-# Generate debugging hypotheses
-/debug
-# - Analyzes unexpected behavior
-# - Suggests investigation paths
-
-# Customize keyboard shortcuts
-/keybindings-help
-# - Modify ~/.claude/keybindings.json
-# - Add chord bindings, rebind keys
+# Other commands
+/validate    # Organize and validate ideas before committing to work
+/debug       # Generate debugging hypotheses
+/keybindings-help  # Customize keyboard shortcuts
 ```
 
 ## Sandbox Execution
@@ -187,27 +180,6 @@ cd ~/your-project
 
 See [.claude-2uo](command:bd%20show%20.claude-2uo) for full details and recommendations.
 
-## Installation
-
-This repository IS the `~/.claude/` directory. Clone it directly:
-
-```bash
-# Back up existing config if needed
-mv ~/.claude ~/.claude.backup
-
-# Clone this repo as your Claude config
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git ~/.claude
-```
-
-Runtime files (MCP logs, session data, project caches) are gitignored - only workflow configuration is tracked.
-
-### Prerequisites
-
-Install the `bd` CLI for task tracking:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-```
 
 ## Artifacts System
 
@@ -263,6 +235,29 @@ The reviewer captures lessons from completed work in `artifacts/lessons-learned.
 
 Add project-specific guidance (coding standards, architecture decisions, business processes) as markdown files in `artifacts/` and register them in `registry.json`. Agents will automatically discover and use them.
 
+## Installation
+
+This repository IS the `~/.claude/` directory. Clone it directly:
+
+```bash
+# Back up existing config if needed
+mv ~/.claude ~/.claude.backup
+
+# Clone this repo as your Claude config
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git ~/.claude
+```
+
+Runtime files (MCP logs, session data, project caches) are gitignored - only workflow configuration is tracked.
+
+### Prerequisites
+
+Install the `bd` CLI for task tracking:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+
 ## Files
 
 ```
@@ -274,7 +269,7 @@ Add project-specific guidance (coding standards, architecture decisions, busines
 │   ├── implementer.md # Code changes
 │   └── reviewer.md    # Quality & lessons
 ├── commands/
-│   ├── discover.md    # Idea validation workflow
+│   ├── validate.md    # Idea validation workflow
 │   ├── develop.md     # Full development workflow
 │   ├── bd-task.md     # Quick task capture
 │   ├── debug.md       # Debugging hypotheses

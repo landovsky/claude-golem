@@ -1,6 +1,6 @@
 # Ideas Directory
 
-This directory supports the Discovery Workflow (see `../workflow-design/DISCOVERY.md`).
+This directory supports the Validation Workflow (see `../workflow-design/DISCOVERY.md`).
 
 ## Directory Structure
 

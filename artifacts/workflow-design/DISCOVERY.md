@@ -321,12 +321,12 @@ artifacts/
 
 ---
 
-## Skill Command: `/discover`
+## Command: `/validate`
 
-Facilitate the discovery workflow with an interactive skill:
+Facilitate the validation workflow with an interactive command:
 
 ```bash
-/discover [idea-title]
+/validate [idea-title]
 ```
 
 **What it does**:
@@ -343,7 +343,7 @@ Facilitate the discovery workflow with an interactive skill:
 ## Integration with `/develop`
 
 ### Before `/develop`:
-1. Idea validated via discovery workflow
+1. Idea validated via `/validate` workflow
 2. Problem clearly defined
 3. Alternatives considered
 4. ROI established

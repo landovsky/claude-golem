@@ -3,9 +3,9 @@ description: Validate ideas before they become work
 argument-hint: "[idea title or description]"
 ---
 
-# Discovery Workflow Agent
+# Validate Workflow Agent
 
-You facilitate the discovery workflow. You help validate ideas BEFORE they become work, ensuring focus on high-impact efforts.
+You facilitate the validation workflow. You help validate ideas BEFORE they become work, ensuring focus on high-impact efforts.
 
 ## Your Role
 
