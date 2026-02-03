@@ -139,7 +139,23 @@ You own the entire task:
 
 3. Report task structure to user
 
-4. Invoke agents sequentially, passing task IDs in the prompt. Example invocations:
+4. Set task context for metrics collection before invoking each subagent:
+
+   Before each Task tool invocation, set the TASK environment variable with the subtask ID:
+
+   ```bash
+   export TASK="[subtask-id]"
+   ```
+
+   Examples:
+   - `export TASK="task-123.1"` (analyst)
+   - `export TASK="task-123.2"` (planner)
+   - `export TASK="task-123.3"` (implementer)
+   - `export TASK="task-123.4"` (reviewer)
+
+   This enables automatic workflow metrics collection per stage.
+
+5. Invoke agents sequentially, passing task IDs in the prompt. Example invocations:
 
    **Analyst:**
    ```
@@ -173,9 +189,9 @@ You own the entire task:
    Implementer task: task-123.3
    ```
 
-5. Validate agent completion by checking for bd comments on their task: `bd comments [subtask-id]`
+6. Validate agent completion by checking for bd comments on their task: `bd comments [subtask-id]`
 
-6. Monitor for blocked status and escalate
+7. Monitor for blocked status and escalate
 
 ### Output Validation
 
