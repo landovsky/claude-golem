@@ -1,0 +1,227 @@
+@startuml claude-sandbox-layers
+!define LIGHTYELLOW #FFFACD
+!define LIGHTGREEN #E0FFE0
+!define LIGHTBLUE #E0F0FF
+!define LIGHTPINK #FFE0E0
+!define LIGHTGRAY #F0F0F0
+!define LIGHTORANGE #FFE5CC
+
+skinparam packageStyle rectangle
+
+title Claude Sandbox - Layer Architecture
+
+rectangle "LAYER 1: Client / CLI" as layer1 LIGHTYELLOW {
+    [claude-sandbox]
+    [detect-services.sh]
+    [Auto-detection]
+    [ruby-versions.yaml]
+
+    note right of [claude-sandbox]
+        **Entry Point**
+        ====
+        Commands: local, remote, build, push, logs, clean
+        Responsibilities:
+        • Parse user commands
+        • Auto-detect repo/branch/ruby version
+        • Orchestrate execution path (local/remote)
+        • Build and manage container images
+        • Clean up completed jobs
+    end note
+}
+
+rectangle "LAYER 2A: Local Orchestration" as layer2a LIGHTGREEN {
+    [docker-compose.yml]
+    [Profile: claude]
+    [Profile: with-postgres]
+    [Profile: with-redis]
+    [Profile: with-mysql]
+    [Profile: with-sqlite]
+
+    note right of [docker-compose.yml]
+        **Local Execution**
+        ====
+        • Profile-based service composition
+        • Health checks for services
+        • Volume management
+        • Network isolation
+        • Environment variable injection
+    end note
+}
+
+rectangle "LAYER 2B: Remote Orchestration" as layer2b LIGHTBLUE {
+    [generate_k8s_job_yaml()]
+    [kubectl API]
+    [Job: claude-sandbox-*]
+    [Conditional Sidecars]
+    [Secrets Manager]
+
+    note right of [generate_k8s_job_yaml()]
+        **Remote Execution**
+        ====
+        • Dynamic YAML generation
+        • Conditional sidecar containers
+        • Resource limits & quotas
+        • Secret injection from K8s
+        • TTL-based auto-cleanup (3600s)
+        • No retry policy (BackoffLimit: 0)
+    end note
+}
+
+rectangle "LAYER 3: Container Image" as layer3 LIGHTPINK {
+    [Dockerfile]
+    [ubuntu:24.04]
+    [Ruby: 3.2 / 3.3 / 3.4]
+    [Node.js 22 LTS]
+    [PostgreSQL Client]
+    [Redis Client]
+    [Chrome + Chromedriver]
+    [Claude Code CLI]
+    [Beads (bd)]
+    [SOPS + age]
+    [Baked: ~/.claude/]
+
+    note right of [Dockerfile]
+        **Pre-built Tools**
+        ====
+        Multi-version Ruby support
+        Full Rails toolchain
+        Secrets management tools
+        Browser testing support
+        Baked-in agents & artifacts
+        Non-root user (claude:claude)
+    end note
+}
+
+rectangle "LAYER 4: Container Runtime" as layer4 LIGHTORANGE {
+    [entrypoint.sh]
+    [Repository Setup]
+    [Environment Loading]
+    [Service Detection]
+    [Readiness Checks]
+    [Dependency Install]
+    [Database Setup]
+    [Beads Setup]
+
+    note right of [entrypoint.sh]
+        **Bootstrap & Setup**
+        ====
+        1. Clone fresh repository
+        2. Load config & decrypt secrets
+        3. Detect project type & services
+        4. Wait for service readiness
+        5. Install dependencies (gems/npm)
+        6. Prepare database (Rails)
+        7. Initialize Beads tracking
+        8. Setup EXIT trap for notifications
+    end note
+}
+
+rectangle "LAYER 5: Execution" as layer5 #FFE5B3 {
+    [Claude Code CLI]
+    [Multi-Agent Workflow]
+    [Analyst Agent]
+    [Planner Agent]
+    [Implementer Agent]
+    [Reviewer Agent]
+    [File Operations]
+    [Git Operations]
+
+    note right of [Claude Code CLI]
+        **Autonomous Execution**
+        ====
+        Full permissions mode
+        Multi-agent collaboration
+        Task decomposition
+        Code implementation
+        Quality review
+        Git workflow automation
+    end note
+}
+
+rectangle "LAYER 6: Safety & Control" as layer6 #FFD0D0 {
+    [safe-git]
+    [Branch Protection]
+    [Force Push Prevention]
+    [Protected Branches]
+
+    note right of [safe-git]
+        **Safety Mechanisms**
+        ====
+        Wraps git binary
+        Blocks force push to: main, master, production
+        Warns on direct pushes to protected branches
+        Additional layer before GitHub protection
+    end note
+}
+
+rectangle "LAYER 7: Notification" as layer7 #E5E5E5 {
+    [notify-telegram.sh]
+    [EXIT Trap]
+    [Status Reporting]
+
+    note right of [notify-telegram.sh]
+        **Async Feedback**
+        ====
+        Triggered on container exit (trap)
+        Reports: status, task, repo, branch, commit
+        Status emojis: ✅ ❌ 💀 ⚠️
+        Enables async monitoring
+    end note
+}
+
+' Vertical Flow
+layer1 -down-> layer2a : docker compose
+layer1 -down-> layer2b : kubectl apply
+layer2a -down-> layer3 : pulls image
+layer2b -down-> layer3 : pulls image
+layer3 -down-> layer4 : ENTRYPOINT
+layer4 -down-> layer5 : exec claude
+layer5 -down-> layer6 : git operations
+layer5 -down-> layer7 : EXIT trap
+
+' External Services
+cloud "GitHub" as github
+cloud "Telegram" as telegram
+cloud "Docker Registry" as registry
+database "PostgreSQL" as postgres
+database "Redis" as redis
+
+' External connections
+layer1 ..> github : git operations
+layer1 ..> registry : push images
+layer3 <.. registry : pull images
+layer4 ..> github : clone repo
+layer5 ..> postgres : database ops
+layer5 ..> redis : cache ops
+layer6 ..> github : safe push
+layer7 ..> telegram : notifications
+
+' Configuration & Secrets
+storage ".env.claude-sandbox\n(plaintext)" as envplain
+storage ".env.sops\n(encrypted)" as envsops
+storage "K8s Secrets" as k8ssecrets
+
+layer4 ..> envplain : load
+layer4 ..> envsops : decrypt
+layer2b ..> k8ssecrets : inject
+
+' Legend
+legend right
+    |= Layer |= Purpose |= Key Tools |
+    | 1 | Client / CLI | bash, git, docker, kubectl |
+    | 2A | Local Orchestration | docker-compose |
+    | 2B | Remote Orchestration | kubernetes |
+    | 3 | Container Image | Dockerfile, Ruby, Node |
+    | 4 | Container Runtime | entrypoint.sh, bundle, npm |
+    | 5 | Execution | Claude Code CLI, agents |
+    | 6 | Safety & Control | safe-git wrapper |
+    | 7 | Notification | notify-telegram.sh |
+
+    **Communication Protocols:**
+    • Environment Variables (primary)
+    • Docker networking / K8s localhost
+    • Git protocol (HTTPS with token)
+    • HTTP(S) for Telegram API
+endlegend
+
+@enduml

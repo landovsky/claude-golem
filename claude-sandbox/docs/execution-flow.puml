@@ -1,0 +1,187 @@
+@startuml claude-sandbox-execution-flow
+title Claude Sandbox - Execution Flow
+
+actor User
+participant "CLI\n(claude-sandbox)" as CLI
+participant "detect-services.sh" as Detect
+participant "Docker Compose\n/ kubectl" as Orchestrator
+participant "Container\n(entrypoint.sh)" as Container
+participant "GitHub" as GitHub
+participant "PostgreSQL" as Postgres
+participant "Redis" as Redis
+participant "Claude CLI" as Claude
+participant "safe-git" as SafeGit
+participant "Telegram" as Telegram
+
+== Initialization ==
+User -> CLI: claude-sandbox local/remote "task"
+activate CLI
+
+CLI -> CLI: auto_detect_repo()
+CLI -> CLI: auto_detect_branch()
+CLI -> CLI: auto_detect_ruby_version()
+CLI -> CLI: check_env()
+
+CLI -> Detect: detect-services.sh $REPO_URL
+activate Detect
+Detect -> GitHub: git archive (Gemfile, package.json)
+GitHub --> Detect: files or 404
+Detect -> Detect: parse dependencies
+Detect --> CLI: "claude with-postgres with-redis"
+deactivate Detect
+
+== Local Execution Path ==
+group Local (Docker Compose)
+    CLI -> Orchestrator: docker compose run \n--profile claude \n--profile with-postgres \n--profile with-redis
+    activate Orchestrator
+
+    Orchestrator -> Postgres: start postgres-sidecar
+    activate Postgres
+
+    Orchestrator -> Redis: start redis-sidecar
+    activate Redis
+
+    Orchestrator -> Container: create claude container
+    activate Container
+end
+
+== Remote Execution Path ==
+group Remote (Kubernetes)
+    CLI -> CLI: generate_k8s_job_yaml()
+    CLI -> Orchestrator: kubectl apply -f job.yaml
+    activate Orchestrator
+
+    Orchestrator -> Container: create Pod with sidecars
+    activate Container
+
+    Orchestrator -> Postgres: start postgres-sidecar [conditional]
+    activate Postgres
+
+    Orchestrator -> Redis: start redis-sidecar [conditional]
+    activate Redis
+end
+
+== Container Bootstrap ==
+Container -> Container: ENTRYPOINT: /entrypoint.sh
+note right
+    Setup trap for EXIT signal
+    to notify on completion
+end note
+
+Container -> GitHub: git clone $REPO_URL
+GitHub --> Container: repository files
+
+Container -> Container: cd /workspace/repo
+Container -> Container: git checkout $REPO_BRANCH
+
+Container -> Container: source .env.claude-sandbox
+Container -> Container: sops decrypt .env.sops\n(if age-key exists)
+
+Container -> Container: detect project type\n(Rails/Node)
+
+Container -> Container: detect services\n(postgres/redis/mysql/sqlite)
+
+== Service Readiness ==
+loop Wait for Services
+    Container -> Postgres: pg_isready
+    Postgres --> Container: accepting connections
+
+    Container -> Redis: redis-cli ping
+    Redis --> Container: PONG
+end
+
+== Dependency Installation ==
+Container -> Container: bundle install\n(cache in vendor/bundle)
+Container -> Container: npm install\n(if package.json exists)
+
+== Database Preparation ==
+Container -> Postgres: rails db:prepare
+Postgres --> Container: database ready
+
+== Beads Setup ==
+Container -> Container: mkdir -p .beads
+Container -> Container: bd setup claude
+Container -> Container: bd import && bd sync
+
+== Claude Execution ==
+Container -> Claude: exec claude \n--dangerously-skip-permissions \n-p "$TASK" \n--output-format stream-json
+activate Claude
+
+note right of Claude
+    Multi-agent workflow:
+    1. Analyst: understand requirements
+    2. Planner: design approach
+    3. Implementer: write code
+    4. Reviewer: validate quality
+end note
+
+loop Task Execution
+    Claude -> Container: read files
+    Container --> Claude: file contents
+
+    Claude -> Container: write/edit files
+    Container --> Claude: success
+
+    Claude -> SafeGit: git add <files>
+    activate SafeGit
+    SafeGit -> SafeGit: check operation safety
+    SafeGit -> GitHub: git add (via /usr/bin/git)
+    SafeGit --> Claude: success
+    deactivate SafeGit
+
+    Claude -> SafeGit: git commit -m "..."
+    activate SafeGit
+    SafeGit -> GitHub: git commit
+    SafeGit --> Claude: success
+    deactivate SafeGit
+
+    Claude -> SafeGit: git push
+    activate SafeGit
+    SafeGit -> SafeGit: validate not force push\nto protected branch
+    SafeGit -> GitHub: git push
+    GitHub --> SafeGit: success
+    SafeGit --> Claude: pushed
+    deactivate SafeGit
+
+    Claude -> Postgres: database operations
+    Postgres --> Claude: results
+
+    Claude -> Container: run tests
+    Container --> Claude: test results
+end
+
+Claude --> Container: exit code
+deactivate Claude
+
+== Cleanup & Notification ==
+Container -> Container: EXIT trap triggered
+
+Container -> Telegram: notify-telegram.sh
+activate Telegram
+note right
+    Status: ✅ (success) / ❌ (failure)
+    Task: description
+    Repo: name
+    Branch: name
+    Commit: hash
+end note
+Telegram -> Telegram: curl Telegram Bot API
+deactivate Telegram
+
+Container --> Orchestrator: exit code
+deactivate Container
+
+== Teardown ==
+Orchestrator -> Postgres: stop
+deactivate Postgres
+
+Orchestrator -> Redis: stop
+deactivate Redis
+
+Orchestrator --> CLI: execution complete
+deactivate Orchestrator
+
+CLI --> User: exit code
+deactivate CLI
+
+@enduml
