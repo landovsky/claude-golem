@@ -99,7 +99,7 @@ Based on challenge and validation:
 
 **If VALIDATED** (High ROI, acceptable risk):
 1. Summarize the validated idea
-2. Create in beads:
+2. Create in beads as blocked (prevents accidental implementation):
    ```bash
    bd create "[Title]" \
      --type=idea \
@@ -120,12 +120,16 @@ Based on challenge and validation:
    Risks: [low/medium/high] - [what]
 
    Next steps: [what needs to happen to be ready]"
+
+   # Mark as blocked until graduated
+   bd update <idea-id> --status=blocked
+   bd comments add <idea-id> "Blocked: Validated idea, not yet graduated to task. Run 'bd update <id> --status=open --type=task' when ready to implement."
    ```
 3. Report beads ID to user
 4. Recommend next steps:
-   - If P0/P1 and ready: "Graduate to task and start `/develop`"
+   - If P0/P1 and ready: "Graduate to task: `bd update <id> --status=open --type=task` then `/develop <id>`"
    - If P0/P1 but needs prep: "What needs to be done before ready?"
-   - If P2+: "Prioritized for later, continue with current work"
+   - If P2+: "Prioritized for later (blocked until graduated), continue with current work"
 
 **If DEFERRED** (Good idea, wrong time):
 1. Explain why (dependencies, timing, context)

@@ -35,6 +35,26 @@ A development request: feature, bug fix, refactor, or improvement.
 
 $ARGUMENTS
 
+## Safety Check
+
+If the input is a beads ID, verify it's ready for development:
+
+```bash
+bd show $ARGUMENTS
+```
+
+**If type=idea**:
+- STOP: This is a validated idea, not a ready task
+- Tell user: "This is `type=idea` (not yet graduated). To implement, first graduate: `bd update <id> --status=open --type=task`"
+- Exit without proceeding
+
+**If status=blocked**:
+- STOP: This task is blocked
+- Tell user: "This task is blocked. Check blockers: `bd show <id>`"
+- Exit without proceeding
+
+Only proceed if type=task/bug/feature AND status=open.
+
 ## Phase 1: Assess the Request
 
 Evaluate two dimensions:

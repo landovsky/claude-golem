@@ -158,7 +158,7 @@ Raw Idea → Challenge → Validate → Prioritize → Graduate (or Archive)
   - [What breaks if this fails?]
 ```
 
-**Action**: Create in beads as `type=idea`:
+**Action**: Create in beads as `type=idea` and mark as blocked:
 
 ```bash
 bd create "Idea title" \
@@ -181,9 +181,13 @@ Assumptions:
 Risks: [technical/execution/impact]
 
 Next steps: [what needs to happen to be ready]"
+
+# IMPORTANT: Mark as blocked to prevent accidental implementation
+bd update <idea-id> --status=blocked
+bd comments add <idea-id> "Blocked: Validated idea, not yet graduated. Unblock when ready to implement."
 ```
 
-**Reference detailed analysis**: If you wrote an analysis file, link it in the description.
+**Why blocked?** Prevents accidentally passing `type=idea` to `/develop`. Ideas must be explicitly graduated to tasks.
 
 **Decision Point**: If validation fails (low ROI, wrong time, high risk), don't create in beads. Just discard or defer.
 
@@ -260,15 +264,17 @@ bd list --type=idea --status=open
 ### Graduate to Task
 
 ```bash
-# Convert idea to task
-bd update <idea-id> --type=task
+# Unblock and convert idea to task
+bd update <idea-id> --status=open --type=task
 
-# Verify conversion
-bd show <idea-id>  # Now shows type=task
+# Verify graduation
+bd show <idea-id>  # Now shows type=task, status=open
 
 # Hand to /develop workflow
 /develop <idea-id>
 ```
+
+**Why unblock?** Ideas are created as `status=blocked` to prevent accidental implementation. Graduation unblocks and converts to task.
 
 **What happens next**:
 1. Master reads the beads task (which has all your validation context)
@@ -400,7 +406,7 @@ You're doing this right if:
 - ROI: High (medium value / small effort)
 - Decision: **Validated**
 
-### Week 2: Create in Beads
+### Week 2: Create in Beads (Blocked)
 ```bash
 bd create "Build read-only web viewer for beads" \
   --type=idea \
@@ -421,19 +427,29 @@ Assumptions:
 - Read-only is sufficient
 
 Next: Design simple web UI, plan tech stack"
+
+# Returns: .claude-abc
+
+# Mark as blocked until graduated
+bd update .claude-abc --status=blocked
+bd comments add .claude-abc "Blocked: Validated idea, not yet ready to implement"
 ```
 
 ### Week 3: Prioritize
 ```bash
-bd list --type=idea --status=open
-# Shows: .claude-abc (P1), .claude-xyz (P2), .claude-def (P2)
+# List ideas (including blocked ones)
+bd list --type=idea
+# Shows: .claude-abc (P1, blocked), .claude-xyz (P2, blocked), .claude-def (P2, blocked)
 # Decide to work on .claude-abc first
 ```
 
 ### Week 4: Graduate & Develop
 ```bash
-# Ready to work on it
-bd update .claude-abc --type=task
+# Ready to work on it - unblock and convert to task
+bd update .claude-abc --status=open --type=task
+
+# Verify graduation
+bd show .claude-abc  # type=task, status=open
 
 # Start development workflow
 /develop .claude-abc
