@@ -11,12 +11,12 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
 
-log() { echo -e "${GREEN}[sandbox]${NC} $1"; }
-info() { echo -e "${BLUE}[sandbox]${NC} $1"; }
-action() { echo -e "${CYAN}[sandbox]${NC} $1"; }
-success() { echo -e "${GREEN}[sandbox]${NC} ✓ $1"; }
-warn() { echo -e "${YELLOW}[sandbox]${NC} $1"; }
-error() { echo -e "${RED}[sandbox]${NC} $1"; }
+log() { echo -e "${GREEN}[sandbox]${NC} $1\n"; }
+info() { echo -e "${BLUE}[sandbox]${NC} $1\n"; }
+action() { echo -e "${CYAN}[sandbox]${NC} $1\n"; }
+success() { echo -e "${GREEN}[sandbox]${NC} ✓ $1\n"; }
+warn() { echo -e "${YELLOW}[sandbox]${NC} $1\n"; }
+error() { echo -e "${RED}[sandbox]${NC} $1\n"; }
 section() { echo -e "\n${BOLD}${BLUE}▶ $1${NC}"; }
 separator() { echo -e "${DIM}────────────────────────────────────────${NC}"; }
 
