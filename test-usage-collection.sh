@@ -23,12 +23,12 @@ CHECKS_FAILED=0
 # Helper functions
 pass() {
     echo -e "${GREEN}✓${NC} $1"
-    ((CHECKS_PASSED++))
+    CHECKS_PASSED=$((CHECKS_PASSED + 1))
 }
 
 fail() {
     echo -e "${RED}✗${NC} $1"
-    ((CHECKS_FAILED++))
+    CHECKS_FAILED=$((CHECKS_FAILED + 1))
 }
 
 warn() {
@@ -179,6 +179,14 @@ fi
 
 echo ""
 
+# Sync beads to git so sandbox can access the task
+info "Syncing beads changes to remote..."
+bd sync >/dev/null 2>&1 || true
+git push origin HEAD >/dev/null 2>&1 || true
+pass "Beads changes pushed to remote"
+
+echo ""
+
 # ==================================================
 # PHASE 3: RUN DEVELOPMENT WORKFLOW
 # ==================================================
@@ -189,13 +197,24 @@ info "Invoking: claude-sandbox local '/develop $task_id'"
 info "This will trigger planner → implementer → reviewer stages"
 echo ""
 
-# Run claude-sandbox and capture output
+# Note: claude-sandbox creates isolated environment
+# The task needs to be in remote git for sandbox to access it
 workflow_output_file=$(mktemp)
+
+echo ""
+warn "IMPORTANT: claude-sandbox uses isolated environment"
+info "For automated testing, you need the task in remote git"
+info "For manual testing, run: claude /develop $task_id"
+echo ""
+read -p "Press Enter to run claude-sandbox, or Ctrl+C to exit and test manually..."
+echo ""
+
 if claude-sandbox local "/develop $task_id" > "$workflow_output_file" 2>&1; then
     pass "Workflow completed successfully"
 else
     fail "Workflow execution failed"
     info "Output saved to: $workflow_output_file"
+    cat "$workflow_output_file"
     exit 1
 fi
 
@@ -215,10 +234,10 @@ CRITERIA_FAILED=0
 echo "1. Checking metrics file exists..."
 if [[ -f "$HOME/.claude/workflow-metrics.jsonl" ]]; then
     pass "Metrics file exists: .claude/workflow-metrics.jsonl"
-    ((CRITERIA_PASSED++))
+    CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
 else
     fail "Metrics file not found"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 # Criterion 2: Stage start/end events captured
@@ -228,10 +247,10 @@ stage_ends=$(jq -s 'map(select(.event=="stage_end")) | length' "$HOME/.claude/wo
 
 if [[ $stage_starts -ge 3 && $stage_ends -ge 3 ]]; then
     pass "Stage events captured: $stage_starts starts, $stage_ends ends (expected >= 3 each)"
-    ((CRITERIA_PASSED++))
+    CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
 else
     fail "Insufficient stage events: $stage_starts starts, $stage_ends ends (expected >= 3 each)"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 # Criterion 3: Token data present
@@ -240,10 +259,10 @@ events_with_tokens=$(jq -s 'map(select(.event=="stage_end" and .tokens.input > 0
 
 if [[ $events_with_tokens -ge 3 ]]; then
     pass "Token data captured in $events_with_tokens stage_end events"
-    ((CRITERIA_PASSED++))
+    CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
 else
     fail "Token data missing or zero in most events (found $events_with_tokens with valid tokens)"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 # Criterion 4: Cost calculated
@@ -253,10 +272,10 @@ total_cost=$(jq -s 'map(select(.event=="stage_end").cost_usd) | add // 0' "$HOME
 
 if [[ $events_with_cost -ge 3 ]]; then
     pass "Cost calculated: $events_with_cost events, total: \$$total_cost"
-    ((CRITERIA_PASSED++))
+    CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
 else
     fail "Cost calculation missing (found $events_with_cost events with cost > 0)"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 # Criterion 5: Model captured
@@ -266,10 +285,10 @@ events_with_model=$(jq -s 'map(select(.event=="stage_end" and .model != null)) |
 if [[ $events_with_model -ge 3 ]]; then
     model_name=$(jq -r 'select(.event=="stage_end") | .model' "$HOME/.claude/workflow-metrics.jsonl" 2>/dev/null | head -1)
     pass "Model captured in $events_with_model events (e.g., $model_name)"
-    ((CRITERIA_PASSED++))
+    CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
 else
     fail "Model information missing (found $events_with_model events with model)"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 # Criterion 6: Duration captured
@@ -278,10 +297,10 @@ events_with_duration=$(jq -s 'map(select(.event=="stage_end" and .duration_secon
 
 if [[ $events_with_duration -ge 3 ]]; then
     pass "Duration captured in $events_with_duration events"
-    ((CRITERIA_PASSED++))
+    CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
 else
     fail "Duration data missing (found $events_with_duration events with duration > 0)"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 # Criterion 7: BD comments posted
@@ -293,20 +312,20 @@ if [[ -n "$subtasks" ]]; then
     comments_found=0
     while IFS= read -r subtask; do
         if bd comments "$subtask" 2>/dev/null | grep -q "Stage Metrics"; then
-            ((comments_found++))
+            comments_found=$((comments_found + 1))
         fi
     done <<< "$subtasks"
 
     if [[ $comments_found -ge 2 ]]; then
         pass "BD comments with metrics found on $comments_found subtasks"
-        ((CRITERIA_PASSED++))
+        CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
     else
         fail "BD comments missing or incomplete (found on $comments_found subtasks)"
-        ((CRITERIA_FAILED++))
+        CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
     fi
 else
     warn "No subtasks found to check for comments"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 # Criterion 8: Validate stages match expected workflow
@@ -316,10 +335,10 @@ expected_stages="implementer planner reviewer"
 
 if echo "$stages" | grep -q "planner" && echo "$stages" | grep -q "implementer" && echo "$stages" | grep -q "reviewer"; then
     pass "Expected workflow stages present: planner, implementer, reviewer"
-    ((CRITERIA_PASSED++))
+    CRITERIA_PASSED=$((CRITERIA_PASSED + 1))
 else
     fail "Missing expected stages. Found: $(echo $stages | tr '\n' ' ')"
-    ((CRITERIA_FAILED++))
+    CRITERIA_FAILED=$((CRITERIA_FAILED + 1))
 fi
 
 echo ""
