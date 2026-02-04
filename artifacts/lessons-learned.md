@@ -192,3 +192,19 @@
 - **Metrics schema is stable and working**: After two full workflow runs, the JSONL schema (stage_start/stage_end with tokens, cost, duration, model, session_id) has proven reliable. This schema can be documented as the standard for workflow instrumentation.
 - **Known $TASK gap needs dedicated fix**: Two runs have confirmed the $TASK environment variable gap. Rather than continuing to document it as "known issue", a dedicated task should address master's subagent spawning to include `TASK=$subtask_id`. This is blocking bd comment posting from hooks.
 - **Verification runs are valuable QA tool**: Running the same workflow twice with existing implementation catches infrastructure issues without conflating them with implementation bugs. Consider making "dry run" a standard QA step for workflow changes.
+
+## 2026-02-04 - .claude-791 - Timestamp Formatter Utility (Validation Task)
+
+### What worked well
+- **Detailed plan with exact code blocks**: The planner provided complete implementation code in the plan, allowing the implementer to follow it precisely. Zero deviations from plan indicates the level of detail was appropriate.
+- **Regex for time-sensitive tests**: The plan explicitly warned about test timing sensitivity and prescribed using `/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/` regex validation instead of exact string matching for current-time cases. This avoids flaky tests. See `/workspace/utils/time-formatter.test.js` line 15.
+- **Pattern reference to existing code**: Pointing to `greeting.js` and `greeting.test.js` as the canonical patterns made code review trivial - implementation matches patterns exactly.
+- **Combined invalid input check**: The single condition `!date || !(date instanceof Date) || isNaN(date.getTime())` elegantly handles all edge cases (null, undefined, no argument, invalid Date object) in one line. See `/workspace/utils/time-formatter.js` line 8.
+
+### What to avoid
+- **Console.log tests lack exit codes**: The test pattern inherited from `greeting.test.js` does not set process exit code on failure. If integrated into CI, failures would not be detected. For validation tasks this is acceptable per lessons-learned line 189, but real features need proper test framework.
+- **No test summary output**: Neither test file outputs a summary (e.g., "6/6 passed"). For manual verification this is fine, but automated test runners benefit from clear pass/fail summaries.
+
+### Process improvements
+- **Validation tasks can be reviewer-light**: For trivial implementations that exactly follow a detailed plan with exact code blocks, the reviewer phase adds minimal value beyond "tests pass, code matches plan." Consider fast-tracking such tasks.
+- **Planner code blocks reduce review time**: When the plan includes complete, correct implementation code, the implementer becomes a transcriber and the reviewer becomes a verifier. This shifts quality assurance left to the planner phase.
