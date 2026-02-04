@@ -175,3 +175,20 @@
 - **Master checklist addition**: When master spawns a subagent, it must pass `TASK=[subtask-id]` in the environment. Add this to master's spawn procedure documentation.
 - **Hook debugging approach**: When bd comments don't appear, check `workflow-metrics.jsonl` for the task value first. If it shows "unknown-task", the issue is upstream (master not setting env var), not in the hooks.
 - **Staged rollout for workflow features**: Test infrastructure features in isolation first (hooks alone), then with mocked env vars, then with actual workflow execution. This test revealed a gap in the middle stage - env var passing wasn't verified before full workflow test.
+
+## 2026-02-04 - .claude-790 (Run 2) - Metrics Validation Second Run
+
+### What worked well
+- **Re-run of existing implementation is fast**: Run 2 analyst completed in 38s vs run 1's 191s (80% faster). When stages verify existing work rather than creating new work, the workflow completes much faster. Use verification runs to isolate infrastructure testing from feature work.
+- **Metrics comparison across runs**: Having run 1 and run 2 in the same JSONL file with the same session_id made A/B comparison straightforward. The session_id continuity across runs enables workflow analysis.
+- **bd comments as stage data transport works**: Analyst and planner specs were successfully posted and retrieved via `bd comments` - the primary data transport mechanism is functioning as designed.
+- **Cache utilization visible in metrics**: Run 2 showed higher cache_read ratios relative to input tokens, indicating the system benefits from repeated operations. This is valuable data for cost optimization.
+
+### What to avoid
+- **Confusing wall-clock time with processing time**: Run 2 implementer showed 2474s duration but only $0.19 cost. This was wall-clock time including human pauses, not actual processing. When analyzing metrics, cross-reference duration with cost - if cost is low but duration is high, there was idle time.
+- **Over-testing trivial implementations**: The greeting utility tests use manual console.log assertions. For a validation task this is fine, but creates technical debt if copied to real features. The plan should note when "quick and dirty" testing is acceptable vs when proper test framework is required.
+
+### Process improvements
+- **Metrics schema is stable and working**: After two full workflow runs, the JSONL schema (stage_start/stage_end with tokens, cost, duration, model, session_id) has proven reliable. This schema can be documented as the standard for workflow instrumentation.
+- **Known $TASK gap needs dedicated fix**: Two runs have confirmed the $TASK environment variable gap. Rather than continuing to document it as "known issue", a dedicated task should address master's subagent spawning to include `TASK=$subtask_id`. This is blocking bd comment posting from hooks.
+- **Verification runs are valuable QA tool**: Running the same workflow twice with existing implementation catches infrastructure issues without conflating them with implementation bugs. Consider making "dry run" a standard QA step for workflow changes.
