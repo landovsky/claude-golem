@@ -48,15 +48,19 @@ echo "-------------------------------------------"
 
 # Check 1: Hook scripts exist and are executable
 echo "1. Checking hook scripts..."
-if [[ -x "$HOME/.claude/hooks/metrics-start.sh" && -x "$HOME/.claude/hooks/metrics-end.sh" ]]; then
-    pass "Hook scripts exist and are executable"
+# Check in project-local .claude/hooks (correct location for git-committed hooks)
+if [[ -x ".claude/hooks/metrics-start.sh" && -x ".claude/hooks/metrics-end.sh" ]]; then
+    pass "Hook scripts exist and are executable (project-local)"
+elif [[ -x "$HOME/.claude/hooks/metrics-start.sh" && -x "$HOME/.claude/hooks/metrics-end.sh" ]]; then
+    warn "Hook scripts found at root level (should be in .claude/hooks/)"
+    info "Move to: .claude/hooks/metrics-*.sh"
 else
     fail "Hook scripts missing or not executable"
-    if [[ ! -f "$HOME/.claude/hooks/metrics-start.sh" ]]; then
-        info "Missing: $HOME/.claude/hooks/metrics-start.sh"
+    if [[ ! -f ".claude/hooks/metrics-start.sh" ]]; then
+        info "Missing: .claude/hooks/metrics-start.sh"
     fi
-    if [[ ! -f "$HOME/.claude/hooks/metrics-end.sh" ]]; then
-        info "Missing: $HOME/.claude/hooks/metrics-end.sh"
+    if [[ ! -f ".claude/hooks/metrics-end.sh" ]]; then
+        info "Missing: .claude/hooks/metrics-end.sh"
     fi
 fi
 
@@ -106,12 +110,17 @@ fi
 
 # Check 4: Manual hook test
 echo "4. Testing hooks manually..."
-test_jsonl="$HOME/.claude/workflow-metrics-test.jsonl"
-rm -f "$test_jsonl" 2>/dev/null || true
 
-# Override JSONL file location for test
+# Determine hook location (prefer project-local)
+if [[ -x ".claude/hooks/metrics-start.sh" ]]; then
+    hook_path=".claude/hooks/metrics-start.sh"
+else
+    hook_path="$HOME/.claude/hooks/metrics-start.sh"
+fi
+
+# Test the hook
 test_input='{"agent_id":"preflight-test","agent_type":"planner","session_id":"test-session"}'
-if echo "$test_input" | TASK="Preflight test" "$HOME/.claude/hooks/metrics-start.sh" 2>/dev/null; then
+if echo "$test_input" | TASK="Preflight test" "$hook_path" 2>/dev/null; then
     if [[ -f "$HOME/.claude/workflow-metrics.jsonl" ]]; then
         last_entry=$(tail -1 "$HOME/.claude/workflow-metrics.jsonl" 2>/dev/null)
         if echo "$last_entry" | jq -e '.event == "stage_start"' >/dev/null 2>&1; then
