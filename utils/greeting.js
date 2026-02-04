@@ -3,11 +3,11 @@
  * @param {string} name - The name to greet
  * @returns {string} A greeting message
  */
-function greet(name) {
-  if (!name || typeof name !== 'string') {
-    throw new Error('Name must be a non-empty string');
+function generateGreeting(name) {
+  if (!name) {
+    return 'Hello, Guest!';
   }
-  return `Hello, ${name}! Welcome to Claude Golem.`;
+  return `Hello, ${name}!`;
 }
 
-module.exports = { greet };
+module.exports = { generateGreeting };
