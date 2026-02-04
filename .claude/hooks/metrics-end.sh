@@ -7,8 +7,19 @@
 # Exit 0 always - hook failures must not break workflow
 set +e
 
+# Debug logging (append to debug log file)
+DEBUG_LOG="/Users/tomas/.claude/hooks-debug.log"
+echo "=== METRICS-END HOOK FIRED ===" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "PWD: $PWD" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "CLAUDE_PROJECT_DIR: ${CLAUDE_PROJECT_DIR:-<not set>}" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "TASK: ${TASK:-<not set>}" >> "$DEBUG_LOG" 2>/dev/null || true
+
 # Read hook input from stdin
 HOOK_INPUT=$(cat)
+
+# Debug: Log raw hook input
+echo "Hook input (first 500 chars): ${HOOK_INPUT:0:500}" >> "$DEBUG_LOG" 2>/dev/null || true
 
 # Extract fields from hook JSON
 agent_id=$(echo "$HOOK_INPUT" | jq -r '.agent_id' 2>/dev/null || echo "unknown-agent")
@@ -16,6 +27,11 @@ agent_type=$(echo "$HOOK_INPUT" | jq -r '.agent_type' 2>/dev/null || echo "unkno
 session_id=$(echo "$HOOK_INPUT" | jq -r '.session_id' 2>/dev/null || echo "unknown-session")
 transcript_path=$(echo "$HOOK_INPUT" | jq -r '.transcript_path' 2>/dev/null || echo "")
 agent_transcript_path=$(echo "$HOOK_INPUT" | jq -r '.agent_transcript_path' 2>/dev/null || echo "")
+
+# Debug: Log parsed values
+echo "Parsed - agent_id: $agent_id, agent_type: $agent_type, session_id: $session_id" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "Parsed - transcript_path: $transcript_path" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "Parsed - agent_transcript_path: $agent_transcript_path" >> "$DEBUG_LOG" 2>/dev/null || true
 
 # Filter: Only track workflow stages (analyst, planner, implementer, reviewer)
 # Skip master, general-purpose, and other agents
@@ -180,7 +196,13 @@ json=$(jq -nc \
 
 # Append to JSONL if json generation succeeded
 if [[ -n "$json" ]]; then
-  echo "$json" >> "$JSONL_FILE" 2>/dev/null || true
+  echo "$json" >> "$JSONL_FILE" 2>/dev/null
+  write_result=$?
+  echo "Duration: ${duration_seconds}s, Tokens: in=$input_tokens out=$output_tokens cache=$cache_read_tokens, Cost: $cost_usd" >> "$DEBUG_LOG" 2>/dev/null || true
+  echo "JSON generated (first 300 chars): ${json:0:300}" >> "$DEBUG_LOG" 2>/dev/null || true
+  echo "Write to $JSONL_FILE: exit_code=$write_result" >> "$DEBUG_LOG" 2>/dev/null || true
+else
+  echo "ERROR: JSON generation failed" >> "$DEBUG_LOG" 2>/dev/null || true
 fi
 
 # Post bd comment with metrics summary (optional - allow to fail gracefully)
@@ -221,9 +243,18 @@ EOF
 
   # Post comment (allow to fail gracefully)
   if command -v bd >/dev/null 2>&1; then
-    bd comments add "$task_raw" "$comment" 2>/dev/null || true
+    bd comments add "$task_raw" "$comment" 2>/dev/null
+    bd_result=$?
+    echo "BD comment posted to $task_raw: exit_code=$bd_result" >> "$DEBUG_LOG" 2>/dev/null || true
+  else
+    echo "BD command not found - skipping comment" >> "$DEBUG_LOG" 2>/dev/null || true
   fi
+else
+  echo "Skipping BD comment - task_raw='$task_raw' doesn't match subtask pattern" >> "$DEBUG_LOG" 2>/dev/null || true
 fi
+
+echo "=== METRICS-END HOOK COMPLETE ===" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "" >> "$DEBUG_LOG" 2>/dev/null || true
 
 # Exit 0 always
 exit 0

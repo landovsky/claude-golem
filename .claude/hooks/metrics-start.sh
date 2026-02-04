@@ -7,14 +7,31 @@
 # Exit 0 always - hook failures must not break workflow
 set +e
 
+# Debug logging (append to debug log file)
+DEBUG_LOG="/Users/tomas/.claude/hooks-debug.log"
+echo "=== METRICS-START HOOK FIRED ===" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "PWD: $PWD" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "CLAUDE_PROJECT_DIR: ${CLAUDE_PROJECT_DIR:-<not set>}" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "TASK: ${TASK:-<not set>}" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "USER: ${USER:-<not set>}" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "HOME: ${HOME:-<not set>}" >> "$DEBUG_LOG" 2>/dev/null || true
+
 # Read hook input from stdin
 HOOK_INPUT=$(cat)
+
+# Debug: Log raw hook input
+echo "Hook input (first 500 chars): ${HOOK_INPUT:0:500}" >> "$DEBUG_LOG" 2>/dev/null || true
 
 # Extract fields from hook JSON
 agent_id=$(echo "$HOOK_INPUT" | jq -r '.agent_id' 2>/dev/null || echo "unknown-agent")
 agent_type=$(echo "$HOOK_INPUT" | jq -r '.agent_type' 2>/dev/null || echo "unknown")
 session_id=$(echo "$HOOK_INPUT" | jq -r '.session_id' 2>/dev/null || echo "unknown-session")
 agent_transcript_path=$(echo "$HOOK_INPUT" | jq -r '.agent_transcript_path' 2>/dev/null || echo "")
+
+# Debug: Log parsed values
+echo "Parsed - agent_id: $agent_id, agent_type: $agent_type, session_id: $session_id" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "Parsed - transcript_path: $agent_transcript_path" >> "$DEBUG_LOG" 2>/dev/null || true
 
 # Filter: Only track workflow stages (analyst, planner, implementer, reviewer)
 # Skip master, general-purpose, and other agents
@@ -70,8 +87,17 @@ json=$(jq -nc \
 
 # Append to JSONL if json generation succeeded
 if [[ -n "$json" ]]; then
-  echo "$json" >> "$JSONL_FILE" 2>/dev/null || true
+  echo "$json" >> "$JSONL_FILE" 2>/dev/null
+  write_result=$?
+  echo "JSON generated: ${json:0:200}" >> "$DEBUG_LOG" 2>/dev/null || true
+  echo "Write to $JSONL_FILE: exit_code=$write_result" >> "$DEBUG_LOG" 2>/dev/null || true
+  echo "File exists after write: $(test -f "$JSONL_FILE" && echo 'yes' || echo 'no')" >> "$DEBUG_LOG" 2>/dev/null || true
+else
+  echo "ERROR: JSON generation failed" >> "$DEBUG_LOG" 2>/dev/null || true
 fi
+
+echo "=== METRICS-START HOOK COMPLETE ===" >> "$DEBUG_LOG" 2>/dev/null || true
+echo "" >> "$DEBUG_LOG" 2>/dev/null || true
 
 # Exit 0 always
 exit 0
