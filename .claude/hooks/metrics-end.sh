@@ -17,11 +17,29 @@ session_id=$(echo "$HOOK_INPUT" | jq -r '.session_id' 2>/dev/null || echo "unkno
 transcript_path=$(echo "$HOOK_INPUT" | jq -r '.transcript_path' 2>/dev/null || echo "")
 agent_transcript_path=$(echo "$HOOK_INPUT" | jq -r '.agent_transcript_path' 2>/dev/null || echo "")
 
+# Filter: Only track workflow stages (analyst, planner, implementer, reviewer)
+# Skip master, general-purpose, and other agents
+if [[ ! "$agent_type" =~ ^(analyst|planner|implementer|reviewer)$ ]]; then
+  # Silently exit - this agent is not part of the workflow we're tracking
+  exit 0
+fi
+
 # Get timestamp in ISO 8601 format
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Get task from environment variable, truncate to 50 chars
-task_raw="${TASK:-unknown-task}"
+# Get task from environment variable or extract from hook input
+task_raw="${TASK:-}"
+
+# If TASK not set, try to extract from agent prompt (master usually passes task ID in prompt)
+if [[ -z "$task_raw" ]]; then
+  # Try to extract beads task ID pattern (e.g., .claude-123, task-123.1, .claude-abc.2)
+  task_raw=$(echo "$HOOK_INPUT" | jq -r '.prompt' 2>/dev/null | grep -oE '\.(claude|task)-[a-z0-9]+(\.[0-9]+)?' | head -1 || echo "")
+fi
+
+# Fallback to "unknown-task" if still empty
+task_raw="${task_raw:-unknown-task}"
+
+# Truncate to 50 chars
 task=$(echo "$task_raw" | cut -c1-50)
 
 # JSONL file path
@@ -58,10 +76,15 @@ if [[ -n "$start_event" ]]; then
   fi
 fi
 
-# Detect status from transcript (simplified - just check for "blocked")
+# Detect status from transcript
+# Default to completed since if the subagent finished, it completed its work
+# Only mark as blocked if there's clear evidence the agent explicitly blocked
 status="completed"
+
 if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
-  if grep -qi "blocked" "$transcript_path" 2>/dev/null; then
+  # Check for explicit blocking statements (agent saying it's blocked/stopping)
+  # Look for phrases like "marked as blocked", "blocking this", "status: blocked"
+  if grep -Eq "mark(ed|ing)? (task|subtask|issue).*(as )?blocked|status.*:.*blocked|^BLOCKED:" "$transcript_path" 2>/dev/null; then
     status="blocked"
   fi
 fi

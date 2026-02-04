@@ -15,11 +15,29 @@ agent_id=$(echo "$HOOK_INPUT" | jq -r '.agent_id' 2>/dev/null || echo "unknown-a
 agent_type=$(echo "$HOOK_INPUT" | jq -r '.agent_type' 2>/dev/null || echo "unknown")
 session_id=$(echo "$HOOK_INPUT" | jq -r '.session_id' 2>/dev/null || echo "unknown-session")
 
+# Filter: Only track workflow stages (analyst, planner, implementer, reviewer)
+# Skip master, general-purpose, and other agents
+if [[ ! "$agent_type" =~ ^(analyst|planner|implementer|reviewer)$ ]]; then
+  # Silently exit - this agent is not part of the workflow we're tracking
+  exit 0
+fi
+
 # Get timestamp in ISO 8601 format
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Get task from environment variable, truncate to 50 chars, fallback to unknown
-task_raw="${TASK:-unknown-task}"
+# Get task from environment variable or extract from hook input
+task_raw="${TASK:-}"
+
+# If TASK not set, try to extract from agent prompt (master usually passes task ID in prompt)
+if [[ -z "$task_raw" ]]; then
+  # Try to extract beads task ID pattern (e.g., .claude-123, task-123.1, .claude-abc.2)
+  task_raw=$(echo "$HOOK_INPUT" | jq -r '.prompt' 2>/dev/null | grep -oE '\.(claude|task)-[a-z0-9]+(\.[0-9]+)?' | head -1 || echo "")
+fi
+
+# Fallback to "unknown-task" if still empty
+task_raw="${task_raw:-unknown-task}"
+
+# Truncate to 50 chars
 task=$(echo "$task_raw" | cut -c1-50)
 
 # JSONL file path

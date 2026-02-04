@@ -164,22 +164,33 @@ if [[ -f "$HOME/.claude/workflow-metrics.jsonl" ]]; then
 fi
 
 # Create the test task
-task_output=$(bd create --title="Test token usage collection workflow" \
+task_output=$(bd create --title="TEST: Validate usage metrics collection" \
     --type=task \
     --priority=2 \
-    --description="Test task for validating usage metrics collection.
+    --description="**Testing Purpose**: This is a test task to validate that SubagentStart/SubagentStop hooks collect metrics correctly.
 
-Create a simple utility function in utils/greeting.js that exports generateGreeting(name).
-The function should return 'Hello, [name]!' or 'Hello, Guest!' if name is empty/null.
+**Task**: Add a simple greeting utility function to utils/greeting.js
 
-Be sure to trigger the full development workflow to test metrics collection." 2>&1)
+**Requirements**:
+- Function: generateGreeting(name)
+- Returns: 'Hello, [name]!' or 'Hello, Guest!' if name is null/empty
+- Include basic tests
+
+**Important**: Please use the FULL WORKFLOW (analyst → planner → implementer → reviewer) even though this is simple, because we're testing the metrics collection hooks that fire when subagents start/stop.
+
+**Expected Outcome**:
+- Simple utility function implemented
+- Metrics captured in ~/.claude/workflow-metrics.jsonl
+- BD comments posted on subtasks with stage metrics
+
+Keep implementation minimal - the goal is to test metrics collection, not to build something complex." 2>&1)
 
 # Extract task ID from output
 task_id=$(echo "$task_output" | grep -oE '\.claude-[a-z0-9]+' | head -1)
 
 if [[ -n "$task_id" ]]; then
     pass "Created test task: $task_id"
-    info "Task: Test token usage collection workflow"
+    info "Task: TEST: Validate usage metrics collection"
 else
     fail "Failed to create test task"
     echo "$task_output"
