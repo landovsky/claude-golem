@@ -158,3 +158,20 @@
 - **Multi-phase features benefit from incremental testing**: Phase 1 established the JSONL schema with null values. Phase 2 only changed the values, not the schema. This made validation simple: just verify the schema matches. Plan multi-phase features with "schema first, data later" when possible.
 - **Transcript format is undocumented API**: The agent_transcript_path JSONL format is not officially documented by Anthropic. The spec correctly identified this risk and the implementation uses defensive parsing. Future features relying on transcript parsing should include explicit versioning or format detection.
 - **Cost precision requirements should be explicit**: The spec noted "4 decimal places" for cost. This drove the awk `printf "%.4f"` decision. Precision requirements should always be in the spec to avoid ambiguity.
+
+## 2026-02-04 - .claude-790 - Metrics Collection Workflow Validation Test
+
+### What worked well
+- **Defensive bd comment guard**: The check `[[ "$task_raw" =~ \. ]]` in `/Users/tomas/.claude/.claude/hooks/metrics-end.sh` line 171 correctly prevents posting garbage comments when `$TASK` is invalid. Without this, the hook would try to post to "unknown-task" and fail noisily.
+- **Metrics infrastructure works independently of bd comments**: Even when bd comments fail (due to invalid task ID), the JSONL file still receives correct stage_start/stage_end events with token data, cost, duration, and stage names. The system degrades gracefully.
+- **Analyst risk identification**: The analyst spec explicitly flagged "$TASK environment variable may not be set correctly by master" as an open risk. This proved accurate and helped the reviewer understand the root cause immediately.
+- **Verification task design**: Using a trivial pre-existing implementation (greeting utility) to exercise the full workflow (analyst -> planner -> implementer -> reviewer) was the right approach. It isolated "does the infrastructure work" from "did we build something new."
+
+### What to avoid
+- **Assuming environment variables are passed automatically**: The hooks depend on `$TASK` being set by master before spawning subagents. The hooks have no way to discover their own task ID - they rely entirely on this env var. If master doesn't set it, the hook cannot self-recover.
+- **Testing hooks in isolation vs integration**: The hooks were tested in isolation (Phase 1, Phase 2) and worked. But the full workflow test revealed that master's env var passing was missing. Unit tests passed, integration test partially failed. Always test hooks end-to-end with actual subagent spawning.
+
+### Process improvements
+- **Master checklist addition**: When master spawns a subagent, it must pass `TASK=[subtask-id]` in the environment. Add this to master's spawn procedure documentation.
+- **Hook debugging approach**: When bd comments don't appear, check `workflow-metrics.jsonl` for the task value first. If it shows "unknown-task", the issue is upstream (master not setting env var), not in the hooks.
+- **Staged rollout for workflow features**: Test infrastructure features in isolation first (hooks alone), then with mocked env vars, then with actual workflow execution. This test revealed a gap in the middle stage - env var passing wasn't verified before full workflow test.
