@@ -163,7 +163,7 @@ task_output=$(bd create --title="Test token usage collection workflow" \
 Create a simple utility function in utils/greeting.js that exports generateGreeting(name).
 The function should return 'Hello, [name]!' or 'Hello, Guest!' if name is empty/null.
 
-This task will trigger the full development workflow to test metrics collection." 2>&1)
+Be sure to trigger the full development workflow to test metrics collection." 2>&1)
 
 # Extract task ID from output
 task_id=$(echo "$task_output" | grep -oE '\.claude-[a-z0-9]+' | head -1)
@@ -179,11 +179,42 @@ fi
 
 echo ""
 
-# Sync beads to git so sandbox can access the task
-info "Syncing beads changes to remote..."
-bd sync >/dev/null 2>&1 || true
-git push origin HEAD >/dev/null 2>&1 || true
-pass "Beads changes pushed to remote"
+# ==================================================
+# PHASE 2.5: SYNC TO GIT
+# ==================================================
+
+echo "Phase 2.5: Syncing to Git"
+echo "-------------------------------------------"
+info "Pushing new task to remote so claude-sandbox can access it..."
+
+# Sync beads changes (commits to .beads/issues.jsonl)
+if bd sync 2>&1 | tee /tmp/bd-sync.log | grep -q "synced successfully"; then
+    pass "Beads changes committed"
+elif grep -q "Nothing to commit" /tmp/bd-sync.log 2>/dev/null; then
+    info "Beads already synced"
+else
+    pass "Beads sync completed"
+fi
+
+# Push to remote
+current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+info "Pushing branch: $current_branch"
+
+if git push origin HEAD 2>&1 | tee /tmp/git-push.log; then
+    pass "Changes pushed to remote"
+else
+    if grep -q "Everything up-to-date" /tmp/git-push.log 2>/dev/null; then
+        pass "Remote already up-to-date"
+    else
+        fail "Failed to push to remote"
+        cat /tmp/git-push.log
+        info "You may need to push manually: git push origin $current_branch"
+        exit 1
+    fi
+fi
+
+# Clean up temp files
+rm -f /tmp/bd-sync.log /tmp/git-push.log
 
 echo ""
 
@@ -195,26 +226,19 @@ echo "Phase 3: Running Development Workflow"
 echo "-------------------------------------------"
 info "Invoking: claude-sandbox local '/develop $task_id'"
 info "This will trigger planner → implementer → reviewer stages"
+info "(Sandbox will pull latest changes from remote)"
 echo ""
 
-# Note: claude-sandbox creates isolated environment
-# The task needs to be in remote git for sandbox to access it
+# Run claude-sandbox and capture output
 workflow_output_file=$(mktemp)
-
-echo ""
-warn "IMPORTANT: claude-sandbox uses isolated environment"
-info "For automated testing, you need the task in remote git"
-info "For manual testing, run: claude /develop $task_id"
-echo ""
-read -p "Press Enter to run claude-sandbox, or Ctrl+C to exit and test manually..."
-echo ""
-
 if claude-sandbox local "/develop $task_id" > "$workflow_output_file" 2>&1; then
     pass "Workflow completed successfully"
 else
     fail "Workflow execution failed"
     info "Output saved to: $workflow_output_file"
-    cat "$workflow_output_file"
+    echo ""
+    echo "Last 50 lines of output:"
+    tail -50 "$workflow_output_file"
     exit 1
 fi
 

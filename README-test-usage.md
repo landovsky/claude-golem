@@ -16,6 +16,11 @@ The test utility performs a complete end-to-end validation:
    - Simple utility function implementation
    - Will invoke planner → implementer → reviewer stages
 
+2.5. **Git Sync** - Pushes task to remote repository
+   - Runs `bd sync` to commit beads changes
+   - Pushes to git remote so claude-sandbox can access the task
+   - Verifies push succeeded
+
 3. **Workflow Execution** - Runs the development workflow via claude-sandbox
    - Executes: `claude-sandbox local '/develop task-id'`
    - Triggers all workflow stages to generate metrics
