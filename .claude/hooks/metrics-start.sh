@@ -14,6 +14,7 @@ HOOK_INPUT=$(cat)
 agent_id=$(echo "$HOOK_INPUT" | jq -r '.agent_id' 2>/dev/null || echo "unknown-agent")
 agent_type=$(echo "$HOOK_INPUT" | jq -r '.agent_type' 2>/dev/null || echo "unknown")
 session_id=$(echo "$HOOK_INPUT" | jq -r '.session_id' 2>/dev/null || echo "unknown-session")
+agent_transcript_path=$(echo "$HOOK_INPUT" | jq -r '.agent_transcript_path' 2>/dev/null || echo "")
 
 # Filter: Only track workflow stages (analyst, planner, implementer, reviewer)
 # Skip master, general-purpose, and other agents
@@ -25,13 +26,16 @@ fi
 # Get timestamp in ISO 8601 format
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Get task from environment variable or extract from hook input
+# Get task from environment variable or extract from agent transcript
 task_raw="${TASK:-}"
 
-# If TASK not set, try to extract from agent prompt (master usually passes task ID in prompt)
-if [[ -z "$task_raw" ]]; then
-  # Try to extract beads task ID pattern (e.g., .claude-123, task-123.1, .claude-abc.2)
-  task_raw=$(echo "$HOOK_INPUT" | jq -r '.prompt' 2>/dev/null | grep -oE '\.(claude|task)-[a-z0-9]+(\.[0-9]+)?' | head -1 || echo "")
+# If TASK not set, try to extract from agent transcript (first user message contains task ID)
+if [[ -z "$task_raw" && -n "$agent_transcript_path" && -f "$agent_transcript_path" ]]; then
+  # Extract first user message and look for task ID pattern
+  task_raw=$(head -1 "$agent_transcript_path" 2>/dev/null | \
+    jq -r '.message.content' 2>/dev/null | \
+    grep -oE '\.(claude|task)-[a-z0-9]+(\.[0-9]+)?' | \
+    head -1 || echo "")
 fi
 
 # Fallback to "unknown-task" if still empty

@@ -27,13 +27,16 @@ fi
 # Get timestamp in ISO 8601 format
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Get task from environment variable or extract from hook input
+# Get task from environment variable or extract from agent transcript
 task_raw="${TASK:-}"
 
-# If TASK not set, try to extract from agent prompt (master usually passes task ID in prompt)
-if [[ -z "$task_raw" ]]; then
-  # Try to extract beads task ID pattern (e.g., .claude-123, task-123.1, .claude-abc.2)
-  task_raw=$(echo "$HOOK_INPUT" | jq -r '.prompt' 2>/dev/null | grep -oE '\.(claude|task)-[a-z0-9]+(\.[0-9]+)?' | head -1 || echo "")
+# If TASK not set, try to extract from agent transcript (first user message contains task ID)
+if [[ -z "$task_raw" && -n "$agent_transcript_path" && -f "$agent_transcript_path" ]]; then
+  # Extract first user message and look for task ID pattern
+  task_raw=$(head -1 "$agent_transcript_path" 2>/dev/null | \
+    jq -r '.message.content' 2>/dev/null | \
+    grep -oE '\.(claude|task)-[a-z0-9]+(\.[0-9]+)?' | \
+    head -1 || echo "")
 fi
 
 # Fallback to "unknown-task" if still empty
@@ -76,18 +79,9 @@ if [[ -n "$start_event" ]]; then
   fi
 fi
 
-# Detect status from transcript
-# Default to completed since if the subagent finished, it completed its work
-# Only mark as blocked if there's clear evidence the agent explicitly blocked
+# Status is always "completed" since SubagentStop means the agent finished its work
+# If an agent truly blocks, it would update the task status via bd commands, not via transcript
 status="completed"
-
-if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
-  # Check for explicit blocking statements (agent saying it's blocked/stopping)
-  # Look for phrases like "marked as blocked", "blocking this", "status: blocked"
-  if grep -Eq "mark(ed|ing)? (task|subtask|issue).*(as )?blocked|status.*:.*blocked|^BLOCKED:" "$transcript_path" 2>/dev/null; then
-    status="blocked"
-  fi
-fi
 
 # Parse transcript for token usage (Phase 2)
 input_tokens=0
