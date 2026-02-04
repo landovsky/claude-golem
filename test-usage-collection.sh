@@ -196,8 +196,36 @@ else
     pass "Beads sync completed"
 fi
 
-# Push to remote
+# Check for uncommitted changes and commit if needed
 current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
+if git diff --quiet && git diff --cached --quiet; then
+    info "No uncommitted changes"
+else
+    warn "Uncommitted changes detected - committing for test"
+
+    # Stage all changes
+    git add -A 2>/dev/null || true
+
+    # Commit with test message
+    if git commit -m "test: usage metrics collection test run
+
+Automated commit from test-usage-collection.sh
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>" 2>&1 | tee /tmp/git-commit.log; then
+        pass "Changes committed"
+    else
+        if grep -q "nothing to commit" /tmp/git-commit.log 2>/dev/null; then
+            info "Nothing to commit after staging"
+        else
+            fail "Failed to commit changes"
+            cat /tmp/git-commit.log
+            exit 1
+        fi
+    fi
+fi
+
+# Push to remote
 info "Pushing branch: $current_branch"
 
 if git push origin HEAD 2>&1 | tee /tmp/git-push.log; then
@@ -214,7 +242,7 @@ else
 fi
 
 # Clean up temp files
-rm -f /tmp/bd-sync.log /tmp/git-push.log
+rm -f /tmp/bd-sync.log /tmp/git-push.log /tmp/git-commit.log
 
 echo ""
 
