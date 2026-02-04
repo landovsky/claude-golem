@@ -1,0 +1,2 @@
+{"event":"stage_end","timestamp":"2026-02-04T08:54:05Z","session_id":"a520fe4e-03c5-4ba6-8a63-ccf804d70f68","agent_id":"a31f901","stage":"","task":"unknown-task","duration_seconds":0,"status":"blocked","tokens":{"input":null,"output":null,"cache_read":null,"cache_creation":null},"cost_usd":null,"model":null}
+{"event":"stage_start","timestamp":"2026-02-04T08:55:57Z","session_id":"test-session","agent_id":"preflight-test","stage":"planner","task":"Preflight test","model":null}
