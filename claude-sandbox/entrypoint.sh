@@ -461,28 +461,48 @@ no-db: true
 EOF
 else
   info "Using existing beads config (preserving sync-branch and other settings)"
+  echo ""
+  info "Config preview:"
+  tail -n 5 .beads/config.yaml | sed 's/^/  /'
+  echo ""
 
-  # Check if sync-branch is configured
-  SYNC_BRANCH=$(grep "^sync-branch:" .beads/config.yaml | sed 's/sync-branch: *"\?\([^"]*\)"\?/\1/' | tr -d '"' | xargs)
+  # Check if sync-branch is configured (handle both quoted and unquoted values)
+  SYNC_BRANCH=$(grep "^sync-branch:" .beads/config.yaml | sed 's/sync-branch:[[:space:]]*//; s/^"//; s/"$//' | tr -d '\r\n' | xargs)
 
   if [ -n "$SYNC_BRANCH" ]; then
-    action "Detected sync-branch: $SYNC_BRANCH"
-    action "Fetching latest beads data from $SYNC_BRANCH..."
+    action "Detected sync-branch: '$SYNC_BRANCH'"
+    action "Fetching latest beads data from sync branch..."
 
-    # Fetch the sync branch and extract issues.jsonl from it
-    if git fetch origin "$SYNC_BRANCH" >/dev/null 2>&1; then
-      if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl 2>/dev/null; then
-        success "Updated issues.jsonl from $SYNC_BRANCH branch"
+    # Fetch all branches first
+    if git fetch origin 2>&1 | head -5; then
+      # Check if branch exists on remote
+      if git ls-remote --heads origin "$SYNC_BRANCH" | grep -q "$SYNC_BRANCH"; then
+        # Extract issues.jsonl from the sync branch
+        if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
+          mv .beads/issues.jsonl.tmp .beads/issues.jsonl
+          success "Updated issues.jsonl from '$SYNC_BRANCH' branch"
+
+          # Clear any existing database to avoid UNIQUE constraint errors
+          if [ -f .beads/beads.db ]; then
+            action "Removing old database to avoid conflicts..."
+            rm -f .beads/beads.db
+          fi
+        else
+          warn "Could not extract issues.jsonl from '$SYNC_BRANCH' (branch may not have beads data yet)"
+        fi
       else
-        warn "Could not extract issues.jsonl from $SYNC_BRANCH (branch may not have beads data yet)"
+        warn "Branch '$SYNC_BRANCH' does not exist on remote (using current branch's beads data)"
       fi
     else
-      warn "Could not fetch $SYNC_BRANCH branch (using current branch's beads data)"
+      warn "Could not fetch from remote (using current branch's beads data)"
     fi
+  else
+    info "No sync-branch configured (using current branch's beads data)"
   fi
 fi
 
-bd --import-only --rename-on-import sync
+# Import from JSONL (without --rename-on-import to avoid conflicts)
+bd --import-only sync
 success "Beads initialized"
 
 # Prime Claude
