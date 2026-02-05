@@ -452,11 +452,35 @@ cd /workspace
 section "Beads setup..."
 info "Initializing bead database..."
 
-# Setup config with # no-db: false
+# Preserve project's beads config if it exists, otherwise create minimal config
 mkdir -p .beads
-cat > .beads/config.yaml << 'EOF'
+if [ ! -f .beads/config.yaml ]; then
+  action "Creating minimal beads config..."
+  cat > .beads/config.yaml << 'EOF'
 no-db: true
 EOF
+else
+  info "Using existing beads config (preserving sync-branch and other settings)"
+
+  # Check if sync-branch is configured
+  SYNC_BRANCH=$(grep "^sync-branch:" .beads/config.yaml | sed 's/sync-branch: *"\?\([^"]*\)"\?/\1/' | tr -d '"' | xargs)
+
+  if [ -n "$SYNC_BRANCH" ]; then
+    action "Detected sync-branch: $SYNC_BRANCH"
+    action "Fetching latest beads data from $SYNC_BRANCH..."
+
+    # Fetch the sync branch and extract issues.jsonl from it
+    if git fetch origin "$SYNC_BRANCH" >/dev/null 2>&1; then
+      if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl 2>/dev/null; then
+        success "Updated issues.jsonl from $SYNC_BRANCH branch"
+      else
+        warn "Could not extract issues.jsonl from $SYNC_BRANCH (branch may not have beads data yet)"
+      fi
+    else
+      warn "Could not fetch $SYNC_BRANCH branch (using current branch's beads data)"
+    fi
+  fi
+fi
 
 bd --import-only --rename-on-import sync
 success "Beads initialized"
