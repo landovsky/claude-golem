@@ -87,34 +87,41 @@ if [ ! -d ".git" ]; then
 else
   action "Updating existing repository..."
 
-  # Check for uncommitted changes before checkout
+  # Check for uncommitted changes
   if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-    warn "Repository has uncommitted changes"
+    warn "Repository has uncommitted changes - stashing for sandbox"
+    echo ""
 
-    # Try auto-sync beads if detected
-    if [ -d ".beads" ] && command -v bd &>/dev/null; then
-      action "Attempting to sync beads changes..."
-      if bd sync 2>&1 | grep -qE "synced successfully|Nothing to commit|up.to.date"; then
-        success "Beads changes synced"
-      else
-        warn "Beads sync failed or incomplete"
-      fi
+    # Show what will be stashed
+    git status --short
+    echo ""
+
+    # Create descriptive stash message with timestamp
+    STASH_MSG="sandbox-auto-stash-$(date +%Y%m%d-%H%M%S)"
+
+    # Check if only beads files are dirty
+    DIRTY_FILES=$(git diff --name-only HEAD)
+    if echo "$DIRTY_FILES" | grep -qv "^\.beads/"; then
+      # Non-beads files are dirty
+      warn "Stashing changes (including non-beads files)"
+      info "Your work in non-beads files will be preserved in git stash"
+    else
+      # Only beads files are dirty
+      info "Stashing beads changes (sandbox uses clean remote state)"
     fi
 
-    # Re-check after sync attempt
-    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-      error "Repository still has uncommitted changes. Please commit or stash:"
-      echo ""
-      git status --short
-      echo ""
-      error "Cannot proceed with dirty working directory."
-      info "Solutions:"
-      info "  • Run 'bd sync' to commit beads changes"
-      info "  • Run 'git commit' to commit other changes"
-      info "  • Run 'git stash' to temporarily save changes"
-      echo ""
-      exit 1
+    # Stash all changes
+    if git stash push -u -m "$STASH_MSG" >/dev/null 2>&1; then
+      success "Changes stashed as: $STASH_MSG"
+      info "Retrieve later with: git stash list; git stash pop"
+    else
+      # Stash failed, force clean
+      warn "Stash failed - forcing clean state"
+      git reset --hard HEAD >/dev/null 2>&1
+      git clean -fd >/dev/null 2>&1
     fi
+
+    echo ""
   fi
 
   # Proceed with safe update
