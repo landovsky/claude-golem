@@ -110,6 +110,19 @@ epic-456 (converted from task)
 /keybindings-help  # Customize keyboard shortcuts
 ```
 
+### Usage Tracking (Experimental)
+
+The `/develop` workflow automatically tracks token usage, costs, and duration for each stage (analyst, planner, implementer, reviewer). Data is persisted to `.claude/workflow-metrics.jsonl` and posted as beads comments.
+
+**Use cases:**
+- Benchmark workflow overhead vs fast-track implementation
+- Detect token anomalies and investigate inefficiencies
+- Understand which stages consume the most resources
+
+**See [artifacts/usage-metrics/README.md](artifacts/usage-metrics/README.md) for setup and usage.**
+
+**Status:** Experimental - real token data collection working, but requires manual settings.json configuration per user.
+
 ## Sandbox Execution
 
 For autonomous, unsupervised execution, use the included **claude-sandbox** environment:

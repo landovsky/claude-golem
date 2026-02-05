@@ -86,6 +86,38 @@ if [ ! -d ".git" ]; then
   rmdir "$CLONE_DIR"
 else
   action "Updating existing repository..."
+
+  # Check for uncommitted changes before checkout
+  if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    warn "Repository has uncommitted changes"
+
+    # Try auto-sync beads if detected
+    if [ -d ".beads" ] && command -v bd &>/dev/null; then
+      action "Attempting to sync beads changes..."
+      if bd sync 2>&1 | grep -qE "synced successfully|Nothing to commit|up.to.date"; then
+        success "Beads changes synced"
+      else
+        warn "Beads sync failed or incomplete"
+      fi
+    fi
+
+    # Re-check after sync attempt
+    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+      error "Repository still has uncommitted changes. Please commit or stash:"
+      echo ""
+      git status --short
+      echo ""
+      error "Cannot proceed with dirty working directory."
+      info "Solutions:"
+      info "  • Run 'bd sync' to commit beads changes"
+      info "  • Run 'git commit' to commit other changes"
+      info "  • Run 'git stash' to temporarily save changes"
+      echo ""
+      exit 1
+    fi
+  fi
+
+  # Proceed with safe update
   git fetch origin
   git checkout "${REPO_BRANCH:-main}"
   git reset --hard "origin/${REPO_BRANCH:-main}"

@@ -226,6 +226,10 @@ Include in your handoff to each agent:
 - [filename]: [description] (usage: [always|decide])
 ```
 
+## Usage Metrics
+
+**Note:** SubagentStart/SubagentStop hooks automatically collect execution metrics (tokens, cost, duration) for workflow stages. This happens transparently - you don't need to do anything. Metrics are written to `.claude/workflow-metrics.jsonl` and posted as BD comments on subtasks.
+
 ## Rules
 
 - Be decisive - make the assessment, don't ask the user to decide complexity
