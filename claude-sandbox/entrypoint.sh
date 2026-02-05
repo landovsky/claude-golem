@@ -473,28 +473,31 @@ else
     action "Detected sync-branch: '$SYNC_BRANCH'"
     action "Fetching latest beads data from sync branch..."
 
-    # Fetch all branches first
-    if git fetch origin 2>&1 | head -5; then
-      # Check if branch exists on remote
-      if git ls-remote --heads origin "$SYNC_BRANCH" | grep -q "$SYNC_BRANCH"; then
-        # Extract issues.jsonl from the sync branch
-        if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
-          mv .beads/issues.jsonl.tmp .beads/issues.jsonl
-          success "Updated issues.jsonl from '$SYNC_BRANCH' branch"
+    # Fetch the specific branch
+    if git fetch origin "$SYNC_BRANCH:refs/remotes/origin/$SYNC_BRANCH" 2>&1; then
+      echo ""
 
-          # Clear any existing database to avoid UNIQUE constraint errors
-          if [ -f .beads/beads.db ]; then
-            action "Removing old database to avoid conflicts..."
-            rm -f .beads/beads.db
-          fi
-        else
-          warn "Could not extract issues.jsonl from '$SYNC_BRANCH' (branch may not have beads data yet)"
+      # Try to extract issues.jsonl from the sync branch
+      if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
+        mv .beads/issues.jsonl.tmp .beads/issues.jsonl
+        success "Updated issues.jsonl from '$SYNC_BRANCH' branch"
+
+        # Clear any existing database to avoid UNIQUE constraint errors
+        if [ -f .beads/beads.db ]; then
+          action "Removing old database to avoid conflicts..."
+          rm -f .beads/beads.db
         fi
       else
-        warn "Branch '$SYNC_BRANCH' does not exist on remote (using current branch's beads data)"
+        warn "Could not extract issues.jsonl from '$SYNC_BRANCH'"
+        info "Trying to extract from main branch instead..."
+        # Fallback: try to get from current branch
+        if [ -f .beads/issues.jsonl ]; then
+          info "Using issues.jsonl from current branch"
+        fi
       fi
     else
-      warn "Could not fetch from remote (using current branch's beads data)"
+      warn "Could not fetch '$SYNC_BRANCH' branch"
+      info "Using current branch's beads data"
     fi
   else
     info "No sync-branch configured (using current branch's beads data)"
