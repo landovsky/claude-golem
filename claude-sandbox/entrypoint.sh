@@ -471,33 +471,55 @@ else
 
   if [ -n "$SYNC_BRANCH" ]; then
     action "Detected sync-branch: '$SYNC_BRANCH'"
-    action "Fetching latest beads data from sync branch..."
 
-    # Fetch the specific branch
-    if git fetch origin "$SYNC_BRANCH:refs/remotes/origin/$SYNC_BRANCH" 2>&1; then
-      echo ""
+    # Debug: Show current git state
+    info "Debug: Current branch: $(git branch --show-current)"
+    info "Debug: Remote URL: $(git remote get-url origin | sed 's/x-access-token:[^@]*/x-access-token:***/')"
 
-      # Try to extract issues.jsonl from the sync branch
-      if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
-        mv .beads/issues.jsonl.tmp .beads/issues.jsonl
-        success "Updated issues.jsonl from '$SYNC_BRANCH' branch"
+    # Debug: Check if branch exists in refs
+    info "Debug: Checking remote branches..."
+    git branch -r | grep "$SYNC_BRANCH" || echo "  (branch not in remote tracking branches yet)"
+    echo ""
 
-        # Clear any existing database to avoid UNIQUE constraint errors
-        if [ -f .beads/beads.db ]; then
-          action "Removing old database to avoid conflicts..."
-          rm -f .beads/beads.db
-        fi
-      else
-        warn "Could not extract issues.jsonl from '$SYNC_BRANCH'"
-        info "Trying to extract from main branch instead..."
-        # Fallback: try to get from current branch
-        if [ -f .beads/issues.jsonl ]; then
-          info "Using issues.jsonl from current branch"
-        fi
+    # The earlier git fetch already fetched all branches, so the branch should exist
+    # Just try to extract issues.jsonl from it
+    action "Extracting beads data from '$SYNC_BRANCH' branch..."
+
+    if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
+      mv .beads/issues.jsonl.tmp .beads/issues.jsonl
+      success "Extracted issues.jsonl from '$SYNC_BRANCH' branch"
+
+      # Clear any existing database to avoid UNIQUE constraint errors
+      if [ -f .beads/beads.db ]; then
+        action "Removing old database to avoid conflicts..."
+        rm -f .beads/beads.db
       fi
     else
-      warn "Could not fetch '$SYNC_BRANCH' branch"
-      info "Using current branch's beads data"
+      # If extraction failed, try fetching the branch specifically
+      warn "Initial extraction failed, fetching '$SYNC_BRANCH' explicitly..."
+
+      if git fetch origin "$SYNC_BRANCH" 2>&1; then
+        echo ""
+        # Try extraction again
+        if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
+          mv .beads/issues.jsonl.tmp .beads/issues.jsonl
+          success "Extracted issues.jsonl from '$SYNC_BRANCH' branch (after explicit fetch)"
+
+          if [ -f .beads/beads.db ]; then
+            action "Removing old database to avoid conflicts..."
+            rm -f .beads/beads.db
+          fi
+        else
+          error "Failed to extract issues.jsonl from '$SYNC_BRANCH'"
+          info "Error details:"
+          git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" 2>&1 | head -10 | sed 's/^/  /'
+          echo ""
+          warn "Falling back to current branch's beads data"
+        fi
+      else
+        warn "Could not fetch '$SYNC_BRANCH' branch"
+        info "Using current branch's beads data"
+      fi
     fi
   else
     info "No sync-branch configured (using current branch's beads data)"
