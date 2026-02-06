@@ -28,6 +28,7 @@ Additional documentation:
 - **[Kubernetes Setup](docs/kubernetes-cluster-setup-guide.md)** - Cluster configuration guide
 - **[SOPS Setup](docs/SOPS-setup.md)** - Encrypted secrets management
 - **[Ruby Versions](docs/RUBY-VERSIONS-management.md)** - Managing multiple Ruby versions
+- **[S3 Cache Setup](docs/S3-CACHE-SETUP.md)** - S3-backed dependency caching configuration
 
 ## Quick Start
 
@@ -103,7 +104,11 @@ kubectl create secret generic claude-sandbox-secrets \
   --from-literal=GITHUB_TOKEN="$GITHUB_TOKEN" \
   --from-literal=CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
   --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
-  --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
+  --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" \
+  --from-literal=AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+  --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  --from-literal=AWS_REGION="us-east-1" \
+  --from-literal=CACHE_S3_BUCKET="my-claude-sandbox-cache"
 
 # Images are automatically built via CI/CD on release tags
 # Image name uses repository owner (auto-detects from fork)
@@ -344,6 +349,51 @@ The sandbox automatically detects which services your project needs and only sta
 - Same environment guarantees (services are there when needed)
 
 This happens automatically - no configuration required.
+
+### S3-Backed Dependency Caching
+
+The sandbox includes S3-backed caching for Ruby gems and Node packages to speed up subsequent runs. This is especially beneficial for Kubernetes deployments where each job starts with a fresh environment.
+
+**How it works:**
+1. Before installing dependencies, checks S3 for a cached version based on lockfile hash (sha256)
+2. If cache hit, downloads and extracts the cached dependencies (typically 10-30s vs 2-5min install)
+3. After successful install, uploads dependencies to S3 for future use
+4. Works for both `bundle install` (Ruby gems) and `npm install` (Node packages)
+
+**Configuration:**
+
+Add AWS credentials and S3 bucket to your Kubernetes secret:
+
+```bash
+kubectl create secret generic claude-sandbox-secrets \
+  --from-literal=AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE" \
+  --from-literal=AWS_SECRET_ACCESS_KEY="wJalr..." \
+  --from-literal=AWS_REGION="us-east-1" \
+  --from-literal=CACHE_S3_BUCKET="my-claude-sandbox-cache" \
+  # ... other secrets
+```
+
+Or in your local `.env.claude-sandbox`:
+
+```bash
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalr...
+AWS_REGION=us-east-1
+CACHE_S3_BUCKET=my-claude-sandbox-cache
+```
+
+**Optional settings:**
+- `CACHE_S3_PREFIX` - Key prefix for cache organization (default: `claude-sandbox-cache`)
+- `CACHE_COMPRESSION` - Enable gzip compression for cache archives (default: `true`)
+- `CACHE_VERBOSE` - Enable verbose cache logging (default: `false`)
+
+**Cache keys:**
+- Ruby gems: `s3://bucket/prefix/bundle-{lockfile-hash}.tar.gz`
+- Node packages: `s3://bucket/prefix/npm-{lockfile-hash}.tar.gz`
+
+**If caching is disabled** (missing credentials or bucket), dependency installation falls back to normal behavior with local-only caching.
+
+**Extensibility:** The caching system is designed to be easily extended for other package managers (pip, cargo, etc.) - see `lib/cache-manager.sh` for implementation.
 
 ## Safety Features
 

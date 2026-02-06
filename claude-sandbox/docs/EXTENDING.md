@@ -300,6 +300,187 @@ If service needs config file:
 
 ---
 
+## Adding S3 Caching for New Package Managers
+
+### Overview
+
+The sandbox includes a reusable S3 caching system (`lib/cache-manager.sh`) that works with any package manager. Ruby gems and Node packages are already supported. Adding support for other package managers (pip, cargo, composer, etc.) follows a simple pattern.
+
+### What You Need
+
+1. **Lockfile** that changes when dependencies change (e.g., `requirements.txt`, `Cargo.lock`)
+2. **Dependency directory** to cache (e.g., `venv/`, `target/`)
+3. **Integration** in entrypoint.sh
+
+### How the Cache Manager Works
+
+The cache manager provides four main functions:
+
+```bash
+# Check if caching is enabled (has AWS credentials + S3 bucket)
+cache_is_enabled
+
+# Restore dependencies from S3 (returns 0 on success, 1 on miss)
+cache_restore "cache_type" "lockfile_path" "target_dir"
+
+# Save dependencies to S3
+cache_save "cache_type" "lockfile_path" "source_dir"
+
+# Optional: Prune old caches
+cache_prune "cache_type" 30  # Keep last 30 days
+```
+
+**Cache key format:** `s3://bucket/prefix/{cache_type}-{lockfile_hash}.tar.gz`
+
+- `cache_type`: Identifies the package manager (e.g., "bundle", "npm", "pip")
+- `lockfile_hash`: First 16 chars of sha256 hash of lockfile
+- `.tar.gz` extension if compression enabled, `.tar` otherwise
+
+### Example: Adding pip (Python) Caching
+
+**Step 1:** Source the cache manager in entrypoint.sh (already done)
+
+```bash
+# Load cache manager
+if [ -f /usr/local/lib/cache-manager.sh ]; then
+  source /usr/local/lib/cache-manager.sh
+fi
+```
+
+**Step 2:** Integrate with dependency installation
+
+```bash
+# Install Python dependencies if needed
+PACKAGES_NEED_INSTALL=false
+if [ "$HAS_PYTHON" = true ]; then
+  # Create venv if needed
+  if [ ! -d "venv" ]; then
+    python3 -m venv venv
+  fi
+
+  # Try to restore from S3 cache first
+  CACHE_RESTORED=false
+  if cache_restore "pip" "requirements.txt" "venv" 2>/dev/null; then
+    success "Python packages restored from S3 cache"
+    CACHE_RESTORED=true
+  fi
+
+  # Verify cache or install if needed
+  REQUIREMENTS_CHECKSUM=$(sha256sum requirements.txt 2>/dev/null | cut -d' ' -f1)
+  if [ ! -f "venv/.installed" ] || [ "$(cat venv/.installed 2>/dev/null)" != "$REQUIREMENTS_CHECKSUM" ]; then
+    action "Installing Python packages..."
+    source venv/bin/activate
+    pip install -r requirements.txt
+    PACKAGES_NEED_INSTALL=true
+    success "Python packages installed"
+
+    # Save to S3 cache if successful
+    if cache_save "pip" "requirements.txt" "venv" 2>/dev/null; then
+      info "Python packages saved to S3 cache"
+    fi
+  else
+    if [ "$CACHE_RESTORED" = false ]; then
+      info "Python packages up to date (using local cache)"
+    fi
+  fi
+fi
+
+# Mark dependencies as successfully installed
+if [ "$PACKAGES_NEED_INSTALL" = true ]; then
+  echo "$REQUIREMENTS_CHECKSUM" > venv/.installed
+fi
+```
+
+### Pattern Breakdown
+
+The pattern for any package manager follows these steps:
+
+1. **Restore from cache:** Try `cache_restore` with lockfile hash
+   - On cache hit: Skip to verification
+   - On cache miss: Proceed to installation
+
+2. **Verify or install:** Check if local cache is valid
+   - Compare stored checksum with current lockfile hash
+   - Verify dependencies actually work (e.g., `bundle exec ruby -e "exit 0"`)
+   - If invalid/missing: Run package manager install
+
+3. **Save to cache:** After successful install, call `cache_save`
+   - Uploads dependency directory to S3
+   - Only if not already cached (cache_save checks this)
+
+4. **Mark as installed:** Write checksum to marker file
+   - `.bundle/.installed` for Ruby gems
+   - `node_modules/.installed` for Node packages
+   - `venv/.installed` for Python packages
+   - Pattern: `{dependency_dir}/.installed`
+
+### Configuration
+
+Cache manager respects these environment variables:
+
+- `AWS_ACCESS_KEY_ID` - AWS access key (required)
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key (required)
+- `AWS_REGION` - AWS region (default: us-east-1)
+- `CACHE_S3_BUCKET` - S3 bucket name (required)
+- `CACHE_S3_PREFIX` - Key prefix (default: claude-sandbox-cache)
+- `CACHE_COMPRESSION` - Enable gzip (default: true)
+- `CACHE_VERBOSE` - Verbose logging (default: false)
+
+### Error Handling
+
+The cache manager is designed to fail gracefully:
+
+- If AWS credentials missing: Silently disabled, falls back to local-only caching
+- If S3 bucket doesn't exist: Operations fail silently, doesn't block install
+- If network timeout: Downloads/uploads timeout after 5 minutes
+- All errors written to stderr (captured by `2>/dev/null` in entrypoint)
+
+This ensures caching failures never block builds - they just run slower.
+
+### Testing
+
+Test your cache integration:
+
+```bash
+# Build image with cache manager
+bin/claude-sandbox build
+
+# Configure S3 caching (local)
+cat >> .env.claude-sandbox <<EOF
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+AWS_REGION=us-east-1
+CACHE_S3_BUCKET=your-bucket
+EOF
+
+# First run (cache miss, will install and save)
+bin/claude-sandbox local "list files"
+
+# Check S3 for cached artifact
+aws s3 ls s3://your-bucket/claude-sandbox-cache/
+
+# Second run (cache hit, should restore from S3)
+bin/claude-sandbox local "list files"
+# Look for "restored from S3 cache" in logs
+```
+
+### Cache Maintenance
+
+Optional: Add periodic cache pruning to remove old entries:
+
+```bash
+# In entrypoint.sh or separate maintenance job
+if [ "${CACHE_PRUNE_ENABLED:-false}" = "true" ]; then
+  cache_prune "bundle" 30  # Keep last 30 days
+  cache_prune "npm" 30
+  cache_prune "pip" 30
+fi
+```
+
+**Note:** Cache pruning is expensive (lists all S3 objects). Consider running as a separate scheduled job rather than in every entrypoint run.
+
+---
+
 ## Getting Help
 
 - **Architecture:** See `docs/ARCHITECTURE.md` for system overview

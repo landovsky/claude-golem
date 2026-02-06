@@ -20,6 +20,11 @@ error() { echo -e "${RED}[sandbox]${NC} $1\n"; }
 section() { echo -e "\n${BOLD}${BLUE}▶ $1${NC}"; }
 separator() { echo -e "${DIM}────────────────────────────────────────${NC}"; }
 
+# Load cache manager
+if [ -f /usr/local/lib/cache-manager.sh ]; then
+  source /usr/local/lib/cache-manager.sh
+fi
+
 # Notification on exit (success, failure, or interrupt)
 EXIT_CODE=0
 cleanup() {
@@ -390,7 +395,15 @@ section "Dependency Installation"
 # Install Ruby dependencies if needed
 GEMS_NEED_INSTALL=false
 if [ "$HAS_RUBY" = true ]; then
-  GEMFILE_CHECKSUM=$(md5sum Gemfile.lock 2>/dev/null | cut -d' ' -f1)
+  # Try to restore from S3 cache first
+  CACHE_RESTORED=false
+  if cache_restore "bundle" "Gemfile.lock" "vendor/bundle" 2>/dev/null; then
+    success "Ruby gems restored from S3 cache"
+    CACHE_RESTORED=true
+  fi
+
+  # Verify cache or install if needed
+  GEMFILE_CHECKSUM=$(sha256sum Gemfile.lock 2>/dev/null | cut -d' ' -f1)
   # Check both: checksum matches AND gems are actually available
   if [ ! -f ".bundle/.installed" ] || [ "$(cat .bundle/.installed 2>/dev/null)" != "$GEMFILE_CHECKSUM" ] || ! bundle exec ruby -e "exit 0" 2>/dev/null; then
     action "Installing Ruby gems..."
@@ -399,8 +412,15 @@ if [ "$HAS_RUBY" = true ]; then
     bundle install --jobs 4
     GEMS_NEED_INSTALL=true
     success "Ruby gems installed"
+
+    # Save to S3 cache if successful
+    if cache_save "bundle" "Gemfile.lock" "vendor/bundle" 2>/dev/null; then
+      info "Ruby gems saved to S3 cache"
+    fi
   else
-    info "Ruby gems up to date (using cached)"
+    if [ "$CACHE_RESTORED" = false ]; then
+      info "Ruby gems up to date (using local cache)"
+    fi
   fi
 fi
 
@@ -410,19 +430,35 @@ if [ "$HAS_NODE" = true ]; then
   # Ensure node_modules exists with correct ownership
   mkdir -p node_modules
 
-  PACKAGE_CHECKSUM=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1)
+  # Try to restore from S3 cache first
+  CACHE_RESTORED=false
+  if cache_restore "npm" "package-lock.json" "node_modules" 2>/dev/null; then
+    success "Node packages restored from S3 cache"
+    CACHE_RESTORED=true
+  fi
+
+  # Verify cache or install if needed
+  PACKAGE_CHECKSUM=$(sha256sum package-lock.json 2>/dev/null | cut -d' ' -f1)
   if [ ! -f "node_modules/.installed" ] || [ "$(cat node_modules/.installed 2>/dev/null)" != "$PACKAGE_CHECKSUM" ]; then
     action "Installing Node packages..."
     npm install
     PACKAGES_NEED_INSTALL=true
     success "Node packages installed"
+
+    # Save to S3 cache if successful
+    if cache_save "npm" "package-lock.json" "node_modules" 2>/dev/null; then
+      info "Node packages saved to S3 cache"
+    fi
   else
-    info "Node packages up to date (using cached)"
+    if [ "$CACHE_RESTORED" = false ]; then
+      info "Node packages up to date (using local cache)"
+    fi
   fi
 fi
 
-# Mark dependencies as successfully installed
+# Mark dependencies as successfully installed (with full sha256)
 if [ "$GEMS_NEED_INSTALL" = true ]; then
+  mkdir -p .bundle
   echo "$GEMFILE_CHECKSUM" > .bundle/.installed
 fi
 if [ "$PACKAGES_NEED_INSTALL" = true ] && [ -n "$PACKAGE_CHECKSUM" ]; then

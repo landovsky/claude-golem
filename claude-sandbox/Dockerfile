@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
     gnupg \
+    unzip \
     # Ruby build dependencies (for ruby-install)
     libssl-dev \
     libreadline-dev \
@@ -42,6 +43,12 @@ RUN apt-get update && apt-get install -y \
     jq \
     vim \
     && rm -rf /var/lib/apt/lists/*
+
+# Install AWS CLI v2 for S3 cache operations
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf aws awscliv2.zip
 
 # Install Node.js 22 LTS
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
@@ -85,6 +92,7 @@ RUN useradd -m -s /bin/bash claude \
 COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chmod=755 safe-git /usr/local/bin/safe-git
 COPY --chmod=755 notify-telegram.sh /usr/local/bin/notify-telegram.sh
+COPY --chmod=755 lib/cache-manager.sh /usr/local/lib/cache-manager.sh
 
 # Copy Claude config (agents, settings) - populated by build script
 # Use `bin/claude-sandbox build` to bake in your ~/.claude/agents
