@@ -562,8 +562,8 @@ else
   fi
 fi
 
-# Import from JSONL (without --rename-on-import to avoid conflicts)
-bd --import-only sync
+# Import from JSONL
+bd sync --import
 success "Beads initialized"
 
 # Prime Claude
