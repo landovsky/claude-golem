@@ -521,8 +521,8 @@ rm -f .beads/beads.db
 grep -q "^no-db:" .beads/config.yaml 2>/dev/null || echo "no-db: true" >> .beads/config.yaml
 success "Beads initialized (JSONL-only mode)"
 
-# Step 4: Setup Claude integration
-bd setup claude
+# Step 4: Setup Claude integration (pipe 'n' to skip interactive prompts)
+echo "n" | bd setup claude
 success "Claude setup complete"
 separator
 
