@@ -70,12 +70,22 @@ git config --global --add safe.directory /workspace
 
 section "Repository Setup"
 # Clone fresh or update existing
-# QUICK FIX: When using workspace volume (local testing), this reuses existing workspace
-# TODO: Always clone fresh for production/k8s runs
+# Check if existing repo matches REPO_URL (workspace volume may have a different repo)
+AUTH_URL=$(echo "$REPO_URL" | sed "s|https://|https://x-access-token:${GITHUB_TOKEN}@|")
+if [ -d ".git" ]; then
+  CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
+  # Compare repos ignoring auth tokens and .git suffix
+  CURRENT_REPO=$(echo "$CURRENT_REMOTE" | sed 's|https://[^@]*@|https://|; s|\.git$||')
+  EXPECTED_REPO=$(echo "$REPO_URL" | sed 's|\.git$||')
+  if [ "$CURRENT_REPO" != "$EXPECTED_REPO" ]; then
+    warn "Workspace has different repo ($CURRENT_REPO)"
+    action "Clearing workspace for new repo..."
+    find . -maxdepth 1 ! -name '.' ! -name '..' ! -name 'node_modules' -exec rm -rf {} + 2>/dev/null || true
+  fi
+fi
+
 if [ ! -d ".git" ]; then
   action "Cloning repository..."
-  # Insert token into URL for authentication
-  AUTH_URL=$(echo "$REPO_URL" | sed "s|https://|https://x-access-token:${GITHUB_TOKEN}@|")
 
   # Clone to temp dir (git won't clone to non-empty dir, and node_modules volume makes it non-empty)
   CLONE_DIR=$(mktemp -d)
@@ -128,6 +138,9 @@ else
 
     echo ""
   fi
+
+  # Ensure remote URL is correct (may have changed between runs)
+  git remote set-url origin "$AUTH_URL"
 
   # Proceed with safe update
   git fetch origin
