@@ -131,8 +131,8 @@ else
 
   # Proceed with safe update
   git fetch origin
-  git checkout "${REPO_BRANCH:-main}"
-  git reset --hard "origin/${REPO_BRANCH:-main}"
+  # Use -B to create/reset local branch from remote (handles branches that only exist on remote)
+  git checkout -B "${REPO_BRANCH:-main}" "origin/${REPO_BRANCH:-main}"
 fi
 
 # Show current state
