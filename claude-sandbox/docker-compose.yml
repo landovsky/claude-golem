@@ -57,6 +57,15 @@ services:
       # Chromium for Capybara
       CHROME_BIN: /usr/bin/chromium-browser
       SELENIUM_DRIVER_URL: ""
+      # S3 Cache (Digital Ocean Spaces)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
+      CACHE_S3_BUCKET: ${CACHE_S3_BUCKET:-}
+      CACHE_S3_PREFIX: ${CACHE_S3_PREFIX:-claude-sandbox-cache}
+      CACHE_COMPRESSION: ${CACHE_COMPRESSION:-true}
+      CACHE_VERBOSE: ${CACHE_VERBOSE:-false}
     volumes:
       # QUICK FIX FOR LOCAL TESTING - Remove for production/k8s
       # Persists workspace between runs to cache gems/node_modules

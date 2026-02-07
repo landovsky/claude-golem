@@ -12,6 +12,7 @@
 #   AWS_REGION - AWS region (default: us-east-1)
 #   CACHE_S3_BUCKET - S3 bucket name for caching
 #   CACHE_S3_PREFIX - Optional prefix for cache keys (default: claude-sandbox-cache)
+#   AWS_ENDPOINT_URL - Optional custom S3 endpoint (for Digital Ocean Spaces, etc.)
 
 set -euo pipefail
 
@@ -24,9 +25,19 @@ readonly RESET="\033[0m"
 : "${CACHE_S3_PREFIX:=claude-sandbox-cache}"
 : "${CACHE_COMPRESSION:=true}"
 : "${CACHE_VERBOSE:=false}"
+: "${AWS_ENDPOINT_URL:=}"
 
 # Cache operation timeout (seconds)
 readonly CACHE_TIMEOUT=300
+
+# Helper function to build AWS CLI arguments
+aws_s3_args() {
+  local args="--region ${AWS_REGION}"
+  if [ -n "${AWS_ENDPOINT_URL}" ]; then
+    args="$args --endpoint-url ${AWS_ENDPOINT_URL}"
+  fi
+  echo "$args"
+}
 
 # Check if caching is enabled
 cache_is_enabled() {
@@ -86,7 +97,7 @@ cache_exists() {
 
   cache_log "Checking cache existence: $s3_key"
 
-  timeout ${CACHE_TIMEOUT} aws s3 ls "$s3_key" --region "${AWS_REGION}" >/dev/null 2>&1
+  timeout ${CACHE_TIMEOUT} aws s3 ls "$s3_key" $(aws_s3_args) >/dev/null 2>&1
 }
 
 # Restore dependencies from S3 cache
@@ -128,7 +139,7 @@ cache_restore() {
   # Download and extract
   local temp_archive="/tmp/cache-${cache_type}-${lockfile_hash}.tar.gz"
 
-  if timeout ${CACHE_TIMEOUT} aws s3 cp "$s3_key" "$temp_archive" --region "${AWS_REGION}" --quiet; then
+  if timeout ${CACHE_TIMEOUT} aws s3 cp "$s3_key" "$temp_archive" $(aws_s3_args) --quiet; then
     cache_log "Extracting cache to $target_dir..."
 
     if [ "${CACHE_COMPRESSION}" = "true" ]; then
@@ -215,7 +226,7 @@ cache_save() {
   fi
 
   # Upload to S3
-  if timeout ${CACHE_TIMEOUT} aws s3 cp "$temp_archive" "$s3_key" --region "${AWS_REGION}" --quiet; then
+  if timeout ${CACHE_TIMEOUT} aws s3 cp "$temp_archive" "$s3_key" $(aws_s3_args) --quiet; then
     cache_log "Cache saved successfully"
     rm -f "$temp_archive"
     return 0
@@ -243,16 +254,18 @@ cache_prune() {
   local prefix="${CACHE_S3_PREFIX}/${cache_type}-"
 
   # List and delete old objects
-  aws s3api list-objects-v2 \
-    --bucket "${CACHE_S3_BUCKET}" \
-    --prefix "$prefix" \
-    --region "${AWS_REGION}" \
+  local api_args="--bucket ${CACHE_S3_BUCKET} --prefix $prefix --region ${AWS_REGION}"
+  if [ -n "${AWS_ENDPOINT_URL}" ]; then
+    api_args="$api_args --endpoint-url ${AWS_ENDPOINT_URL}"
+  fi
+
+  aws s3api list-objects-v2 $api_args \
     --query "Contents[?LastModified<='$(date -d "${days_to_keep} days ago" -Iseconds)'].Key" \
     --output text | \
   while read -r key; do
     if [ -n "$key" ]; then
       cache_log "Deleting old cache: s3://${CACHE_S3_BUCKET}/${key}"
-      aws s3 rm "s3://${CACHE_S3_BUCKET}/${key}" --region "${AWS_REGION}" --quiet
+      aws s3 rm "s3://${CACHE_S3_BUCKET}/${key}" $(aws_s3_args) --quiet
     fi
   done
 
