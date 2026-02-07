@@ -29,3 +29,4 @@
 .beads/.bv.lock
 .beads/export-state/*
 age-key.txt
+.beads/issues.jsonl
