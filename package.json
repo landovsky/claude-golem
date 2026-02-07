@@ -1,6 +1,6 @@
 {
   "name": "claude-golem",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Claude Code workflow orchestration and remote execution environment",
   "scripts": {
