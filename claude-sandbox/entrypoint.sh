@@ -405,14 +405,31 @@ separator
 
 section "Dependency Installation"
 
+# Show cache status (#3)
+if cache_is_enabled; then
+  info "S3 cache enabled: s3://${CACHE_S3_BUCKET}/ (endpoint: ${AWS_ENDPOINT_URL:-aws})"
+else
+  info "S3 cache disabled (credentials not configured)"
+fi
+
 # Install Ruby dependencies if needed
 GEMS_NEED_INSTALL=false
 if [ "$HAS_RUBY" = true ]; then
+  # Check lockfile exists (#2)
+  if [ ! -f "Gemfile.lock" ]; then
+    warn "Gemfile.lock not found - first run will be slower"
+    info "Run 'bundle lock' locally to generate Gemfile.lock for caching"
+  fi
+
   # Try to restore from S3 cache first
   CACHE_RESTORED=false
-  if cache_restore "bundle" "Gemfile.lock" "vendor/bundle" 2>/dev/null; then
+  if cache_restore "bundle" "Gemfile.lock" "vendor/bundle"; then
     success "Ruby gems restored from S3 cache"
     CACHE_RESTORED=true
+  else
+    if cache_is_enabled && [ -f "Gemfile.lock" ]; then
+      info "Cache miss for Ruby gems - will install fresh"
+    fi
   fi
 
   # Verify cache or install if needed
@@ -422,12 +439,16 @@ if [ "$HAS_RUBY" = true ]; then
     action "Installing Ruby gems..."
     bundle config set --local path 'vendor/bundle'
     bundle config set --local without 'production'
-    bundle install --jobs 4
+    if ! bundle install --jobs 4; then
+      error "bundle install failed"
+      error "Check Gemfile and Gemfile.lock for issues"
+      exit 1
+    fi
     GEMS_NEED_INSTALL=true
     success "Ruby gems installed"
 
     # Save to S3 cache in background (don't block entrypoint)
-    ( cache_save "bundle" "Gemfile.lock" "vendor/bundle" 2>/dev/null && \
+    ( cache_save "bundle" "Gemfile.lock" "vendor/bundle" && \
       echo -e "${GREEN}[sandbox]${NC} ✓ Ruby gems cached to S3 (background)\n" || true ) &
   else
     if [ "$CACHE_RESTORED" = false ]; then
@@ -442,23 +463,37 @@ if [ "$HAS_NODE" = true ]; then
   # Ensure node_modules exists with correct ownership
   mkdir -p node_modules
 
+  # Check lockfile exists (#2)
+  if [ ! -f "package-lock.json" ]; then
+    warn "package-lock.json not found - first run will be slower"
+    info "Run 'npm install' locally to generate package-lock.json for caching"
+  fi
+
   # Try to restore from S3 cache first
   CACHE_RESTORED=false
-  if cache_restore "npm" "package-lock.json" "node_modules" 2>/dev/null; then
+  if cache_restore "npm" "package-lock.json" "node_modules"; then
     success "Node packages restored from S3 cache"
     CACHE_RESTORED=true
+  else
+    if cache_is_enabled && [ -f "package-lock.json" ]; then
+      info "Cache miss for Node packages - will install fresh"
+    fi
   fi
 
   # Verify cache or install if needed
   PACKAGE_CHECKSUM=$(sha256sum package-lock.json 2>/dev/null | cut -d' ' -f1)
   if [ ! -f "node_modules/.installed" ] || [ "$(cat node_modules/.installed 2>/dev/null)" != "$PACKAGE_CHECKSUM" ]; then
     action "Installing Node packages..."
-    npm install
+    if ! npm install; then
+      error "npm install failed"
+      error "Check package.json and package-lock.json for issues"
+      exit 1
+    fi
     PACKAGES_NEED_INSTALL=true
     success "Node packages installed"
 
     # Save to S3 cache in background (don't block entrypoint)
-    ( cache_save "npm" "package-lock.json" "node_modules" 2>/dev/null && \
+    ( cache_save "npm" "package-lock.json" "node_modules" && \
       echo -e "${GREEN}[sandbox]${NC} ✓ Node packages cached to S3 (background)\n" || true ) &
   else
     if [ "$CACHE_RESTORED" = false ]; then
