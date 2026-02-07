@@ -516,12 +516,10 @@ if [ -f .beads/config.yaml ]; then
   fi
 fi
 
-# Step 2: Clean slate - remove old database, use JSONL-only mode
+# Step 2: Clean slate - use JSONL-only mode (no database, no interactive prompts)
 rm -f .beads/beads.db
-
-# Step 3: Initialize in no-db mode from existing JSONL (non-interactive)
-bd init --no-db --from-jsonl --skip-hooks --force 2>/dev/null || true
-success "Beads initialized"
+grep -q "^no-db:" .beads/config.yaml 2>/dev/null || echo "no-db: true" >> .beads/config.yaml
+success "Beads initialized (JSONL-only mode)"
 
 # Step 4: Setup Claude integration
 bd setup claude
