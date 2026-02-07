@@ -10,10 +10,12 @@
 # Optional environment variables:
 #   TASK              - Task description (for context in message)
 #   REPO_URL          - Repository URL
+#   SANDBOX_MODE      - Sandbox kind: "local" or "remote"
 
 EXIT_CODE="${1:-0}"
 TASK="${TASK:-unknown task}"
 REPO_URL="${REPO_URL:-unknown repo}"
+SANDBOX_MODE="${SANDBOX_MODE:-unknown}"
 
 # Skip if Telegram not configured
 if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
@@ -45,7 +47,16 @@ fi
 REPO_NAME=$(echo "$REPO_URL" | sed 's|.*/||' | sed 's|\.git$||')
 
 # Build message
-MESSAGE="🤖 *Claude Sandbox*
+# Mode indicator
+if [ "$SANDBOX_MODE" = "local" ]; then
+  MODE_LABEL="🏠 local"
+elif [ "$SANDBOX_MODE" = "remote" ]; then
+  MODE_LABEL="☁️ remote"
+else
+  MODE_LABEL="$SANDBOX_MODE"
+fi
+
+MESSAGE="🤖 *Claude Sandbox* (${MODE_LABEL})
 
 $STATUS
 

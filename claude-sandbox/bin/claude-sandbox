@@ -305,6 +305,7 @@ cmd_local() {
 
   # Run with task, passing IMAGE_TAG to docker-compose
   IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS run -it --rm \
+    -e SANDBOX_MODE="local" \
     -e TASK="$task" \
     -e GITHUB_TOKEN="$GITHUB_TOKEN" \
     -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
@@ -543,6 +544,7 @@ cmd_remote() {
   log "Image: $full_image"
 
   # Export for envsubst
+  export SANDBOX_MODE="remote"
   export TASK="$task"
   export JOB_NAME="$job_name"
   export CLAUDE_IMAGE="$full_image"

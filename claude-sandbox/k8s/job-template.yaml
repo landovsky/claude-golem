@@ -61,6 +61,8 @@ spec:
       - name: claude
         image: ${CLAUDE_IMAGE}
         env:
+        - name: SANDBOX_MODE
+          value: "${SANDBOX_MODE}"
         - name: TASK
           value: "${TASK}"
         - name: REPO_URL
