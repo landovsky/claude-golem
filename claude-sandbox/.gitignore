@@ -5,3 +5,4 @@ claude-config/*
 # Local environment overrides
 .env
 .env.local
+k8s/secrets.yaml
