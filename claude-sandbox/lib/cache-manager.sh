@@ -76,7 +76,8 @@ cache_hash() {
 
 # Generate S3 key for cache
 # Args: cache_type, lockfile_hash
-# Returns: s3://bucket/prefix/type-hash.tar.gz
+# Returns: s3://bucket/prefix/stack/type-hash.tar.gz
+# Key structure: prefix/ruby/bundle-abc123.tar.gz, prefix/node/npm-def456.tar.gz
 cache_key() {
   local cache_type="$1"
   local lockfile_hash="$2"
@@ -86,7 +87,18 @@ cache_key() {
     extension=".tar"
   fi
 
-  echo "s3://${CACHE_S3_BUCKET}/${CACHE_S3_PREFIX}/${cache_type}-${lockfile_hash}${extension}"
+  # Map cache_type to tech stack folder
+  local stack
+  case "$cache_type" in
+    bundle)  stack="ruby" ;;
+    npm)     stack="node" ;;
+    pip)     stack="python" ;;
+    cargo)   stack="rust" ;;
+    gomod)   stack="go" ;;
+    *)       stack="$cache_type" ;;
+  esac
+
+  echo "s3://${CACHE_S3_BUCKET}/${CACHE_S3_PREFIX}/${stack}/${cache_type}-${lockfile_hash}${extension}"
 }
 
 # Check if cache exists in S3

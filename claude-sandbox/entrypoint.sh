@@ -413,10 +413,9 @@ if [ "$HAS_RUBY" = true ]; then
     GEMS_NEED_INSTALL=true
     success "Ruby gems installed"
 
-    # Save to S3 cache if successful
-    if cache_save "bundle" "Gemfile.lock" "vendor/bundle" 2>/dev/null; then
-      info "Ruby gems saved to S3 cache"
-    fi
+    # Save to S3 cache in background (don't block entrypoint)
+    ( cache_save "bundle" "Gemfile.lock" "vendor/bundle" 2>/dev/null && \
+      echo -e "${GREEN}[sandbox]${NC} ✓ Ruby gems cached to S3 (background)\n" || true ) &
   else
     if [ "$CACHE_RESTORED" = false ]; then
       info "Ruby gems up to date (using local cache)"
@@ -445,10 +444,9 @@ if [ "$HAS_NODE" = true ]; then
     PACKAGES_NEED_INSTALL=true
     success "Node packages installed"
 
-    # Save to S3 cache if successful
-    if cache_save "npm" "package-lock.json" "node_modules" 2>/dev/null; then
-      info "Node packages saved to S3 cache"
-    fi
+    # Save to S3 cache in background (don't block entrypoint)
+    ( cache_save "npm" "package-lock.json" "node_modules" 2>/dev/null && \
+      echo -e "${GREEN}[sandbox]${NC} ✓ Node packages cached to S3 (background)\n" || true ) &
   else
     if [ "$CACHE_RESTORED" = false ]; then
       info "Node packages up to date (using local cache)"
