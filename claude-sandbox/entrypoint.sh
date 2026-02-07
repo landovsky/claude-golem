@@ -488,85 +488,43 @@ cd /workspace
 section "Beads setup..."
 info "Initializing bead database..."
 
-# Preserve project's beads config if it exists, otherwise create minimal config
 mkdir -p .beads
-if [ ! -f .beads/config.yaml ]; then
-  action "Creating minimal beads config..."
-  cat > .beads/config.yaml << 'EOF'
-no-db: true
-EOF
-else
-  info "Using existing beads config (preserving sync-branch and other settings)"
-  echo ""
-  info "Config preview:"
-  tail -n 5 .beads/config.yaml | sed 's/^/  /'
-  echo ""
 
-  # Check if sync-branch is configured (handle both quoted and unquoted values)
+# Step 1: Extract latest issues.jsonl from sync-branch if configured
+if [ -f .beads/config.yaml ]; then
   SYNC_BRANCH=$(grep "^sync-branch:" .beads/config.yaml | sed 's/sync-branch:[[:space:]]*//; s/^"//; s/"$//' | tr -d '\r\n' | xargs)
 
   if [ -n "$SYNC_BRANCH" ]; then
-    action "Detected sync-branch: '$SYNC_BRANCH'"
-
-    # Debug: Show current git state
-    info "Debug: Current branch: $(git branch --show-current)"
-    info "Debug: Remote URL: $(git remote get-url origin | sed 's/x-access-token:[^@]*/x-access-token:***/')"
-
-    # Debug: Check if branch exists in refs
-    info "Debug: Checking remote branches..."
-    git branch -r | grep "$SYNC_BRANCH" || echo "  (branch not in remote tracking branches yet)"
-    echo ""
-
-    # The earlier git fetch already fetched all branches, so the branch should exist
-    # Just try to extract issues.jsonl from it
     action "Extracting beads data from '$SYNC_BRANCH' branch..."
 
-    if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
+    if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>/dev/null; then
       mv .beads/issues.jsonl.tmp .beads/issues.jsonl
       success "Extracted issues.jsonl from '$SYNC_BRANCH' branch"
-
-      # Clear any existing database to avoid UNIQUE constraint errors
-      if [ -f .beads/beads.db ]; then
-        action "Removing old database to avoid conflicts..."
-        rm -f .beads/beads.db
-      fi
     else
-      # If extraction failed, try fetching the branch specifically
-      warn "Initial extraction failed, fetching '$SYNC_BRANCH' explicitly..."
-
-      if git fetch origin "$SYNC_BRANCH" 2>&1; then
-        echo ""
-        # Try extraction again
-        if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>&1; then
+      # Try explicit fetch if not in tracking branches yet
+      if git fetch origin "$SYNC_BRANCH" 2>/dev/null; then
+        if git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" > .beads/issues.jsonl.tmp 2>/dev/null; then
           mv .beads/issues.jsonl.tmp .beads/issues.jsonl
-          success "Extracted issues.jsonl from '$SYNC_BRANCH' branch (after explicit fetch)"
-
-          if [ -f .beads/beads.db ]; then
-            action "Removing old database to avoid conflicts..."
-            rm -f .beads/beads.db
-          fi
+          success "Extracted issues.jsonl from '$SYNC_BRANCH' branch (after fetch)"
         else
-          error "Failed to extract issues.jsonl from '$SYNC_BRANCH'"
-          info "Error details:"
-          git show "origin/$SYNC_BRANCH:.beads/issues.jsonl" 2>&1 | head -10 | sed 's/^/  /'
-          echo ""
-          warn "Falling back to current branch's beads data"
+          warn "Could not extract issues.jsonl from '$SYNC_BRANCH'"
         fi
       else
         warn "Could not fetch '$SYNC_BRANCH' branch"
-        info "Using current branch's beads data"
       fi
     fi
-  else
-    info "No sync-branch configured (using current branch's beads data)"
   fi
 fi
 
-# Import from JSONL
+# Step 2: Clean slate - remove old database to avoid conflicts
+rm -f .beads/beads.db
+
+# Step 3: Initialize database and import from JSONL
+bd init 2>/dev/null || true
 bd sync --import
 success "Beads initialized"
 
-# Prime Claude
+# Step 4: Setup Claude integration
 bd setup claude
 success "Claude setup complete"
 separator
