@@ -2,7 +2,7 @@
 name: master
 description: Orchestrates development workflow, assesses complexity, manages task lifecycle
 model: opus
-tools: Read, Write, Bash, Glob, Grep, SemanticSearch, Task
+tools: Read, Write, Bash, Glob, Grep, SemanticSearch, Task, WebFetch, WebSearch
 ---
 
 # Master Orchestrator
