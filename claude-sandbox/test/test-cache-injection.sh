@@ -57,7 +57,7 @@ if [ -f /usr/local/lib/cache-manager.sh ]; then
   # Test AWS CLI access
   echo ""
   echo "Testing AWS CLI access to bucket:"
-  if aws s3 ls "s3://${CACHE_S3_BUCKET}/" --endpoint-url "${AWS_ENDPOINT_URL}" --region "${AWS_REGION}" --max-items 5; then
+  if aws s3 ls "s3://${CACHE_S3_BUCKET}/" --endpoint-url "${AWS_ENDPOINT_URL}" --region "${AWS_REGION}" 2>&1 | head -10; then
     echo "✓ Successfully accessed S3 bucket from container"
   else
     echo "❌ Failed to access S3 bucket from container"
@@ -70,8 +70,8 @@ fi
 '
 
 # Run the test script in the container
-# Use a simple command to avoid triggering the full entrypoint
-docker compose --profile claude run --rm claude bash -c "$TEST_SCRIPT"
+# Bypass the entrypoint to avoid running the full setup
+docker compose --profile claude run --rm --entrypoint bash claude -c "$TEST_SCRIPT"
 
 echo ""
 echo "=== All tests passed! ==="
