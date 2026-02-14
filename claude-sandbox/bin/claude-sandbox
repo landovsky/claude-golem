@@ -111,8 +111,11 @@ auto_detect_ruby_version() {
   # Try to read .ruby-version from repository
   if [ -d "$PWD/.git" ]; then
     # Local git repository - check if REPO_URL points here
+    # Normalize both URLs to compare (SSH vs HTTPS may differ)
     local current_remote=$(git -C "$PWD" remote get-url origin 2>/dev/null || echo "")
-    if [ "$current_remote" = "$REPO_URL" ] || [ -z "$REPO_URL" ]; then
+    local normalized_remote=$(echo "$current_remote" | sed -E 's|git@github\.com:|https://github.com/|; s|\.git$||')
+    local normalized_repo=$(echo "$REPO_URL" | sed -E 's|git@github\.com:|https://github.com/|; s|\.git$||')
+    if [ "$normalized_remote" = "$normalized_repo" ] || [ -z "$REPO_URL" ]; then
       # We're in the target repository
       if [ -f "$PWD/.ruby-version" ]; then
         ruby_version=$(cat "$PWD/.ruby-version" | tr -d '[:space:]')
