@@ -527,7 +527,10 @@ separator
 if [ "$HAS_RAILS" = true ]; then
   section "Database Setup"
   action "Preparing Rails database..."
-  bundle exec rails db:prepare || bundle exec rails db:setup
+  bundle exec rails db:prepare 2>&1 || {
+    warn "db:prepare failed, attempting db:reset..."
+    bundle exec rails db:drop db:create db:migrate 2>&1 || warn "Database setup failed — Claude agent will need to handle this"
+  }
   success "Database ready"
   separator
 fi
