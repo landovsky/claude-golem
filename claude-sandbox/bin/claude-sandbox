@@ -317,8 +317,14 @@ cmd_local() {
     IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS up -d $DEP_SERVICES
   fi
 
+  # Detect interactive mode — use -it if TTY available, -T otherwise
+  local INTERACTIVE_FLAGS="-it"
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
+    INTERACTIVE_FLAGS="-T"
+  fi
+
   # Run with task, passing IMAGE_TAG to docker-compose
-  IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS run -it --rm \
+  IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS run $INTERACTIVE_FLAGS --rm \
     -e SANDBOX_MODE="local" \
     -e TASK="$task" \
     -e GITHUB_TOKEN="$GITHUB_TOKEN" \
