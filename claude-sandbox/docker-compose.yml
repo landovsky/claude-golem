@@ -9,7 +9,7 @@
 services:
   postgres:
     profiles: ["with-postgres"]
-    image: postgis/postgis:16-3.4-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: claude
       POSTGRES_PASSWORD: claude
