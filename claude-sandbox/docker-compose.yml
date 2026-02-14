@@ -37,7 +37,7 @@ services:
     depends_on: {}
     environment:
       # Database
-      DATABASE_URL: postgis://claude:claude@postgres:5432/${DATABASE_NAME:-sandbox_development}
+      DATABASE_URL: postgresql://claude:claude@postgres:5432/${DATABASE_NAME:-sandbox_development}
       REDIS_URL: redis://redis:6379
       # Secrets (provide via env or .env file)
       GITHUB_TOKEN: ${GITHUB_TOKEN}
