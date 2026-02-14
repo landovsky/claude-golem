@@ -144,6 +144,9 @@ else
 
   # Proceed with safe update
   git fetch origin
+  # Clean .beads/ before checkout - it gets recreated from sync branch later
+  # and leftover files from previous runs cause checkout conflicts
+  rm -rf .beads/
   # Use -B to create/reset local branch from remote (handles branches that only exist on remote)
   git checkout -B "${REPO_BRANCH:-main}" "origin/${REPO_BRANCH:-main}"
 fi
@@ -300,11 +303,13 @@ if [ "$NEEDS_POSTGRES" = true ]; then
   if [ -n "$DATABASE_URL" ]; then
     action "Waiting for PostgreSQL to be ready..."
 
-    # Extract connection details from DATABASE_URL if needed
-    # For now, use standard localhost connection
-    POSTGRES_HOST="localhost"
-    POSTGRES_PORT="5432"
-    POSTGRES_USER="claude"
+    # Extract connection details from DATABASE_URL
+    POSTGRES_HOST=$(echo "$DATABASE_URL" | sed -E 's|.*@([^:/]+).*|\1|')
+    POSTGRES_PORT=$(echo "$DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|')
+    POSTGRES_USER=$(echo "$DATABASE_URL" | sed -E 's|.*://([^:]+):.*|\1|')
+    POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+    POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+    POSTGRES_USER="${POSTGRES_USER:-claude}"
 
     MAX_RETRIES=30
     RETRY_COUNT=0
@@ -334,8 +339,10 @@ if [ "$NEEDS_REDIS" = true ]; then
   if [ -n "$REDIS_URL" ]; then
     action "Waiting for Redis to be ready..."
 
-    REDIS_HOST="localhost"
-    REDIS_PORT="6379"
+    REDIS_HOST=$(echo "$REDIS_URL" | sed -E 's|.*://([^:/]+).*|\1|')
+    REDIS_PORT=$(echo "$REDIS_URL" | sed -E 's|.*:([0-9]+).*|\1|')
+    REDIS_HOST="${REDIS_HOST:-localhost}"
+    REDIS_PORT="${REDIS_PORT:-6379}"
 
     MAX_RETRIES=30
     RETRY_COUNT=0

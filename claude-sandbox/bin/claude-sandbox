@@ -303,6 +303,20 @@ cmd_local() {
     PROFILE_FLAGS="$PROFILE_FLAGS --profile $profile"
   done
 
+  # Start dependency services (postgres, redis) before running claude
+  # docker compose run only starts depends_on services, which are empty
+  local DEP_SERVICES=""
+  if echo "$COMPOSE_PROFILES" | grep -q "with-postgres"; then
+    DEP_SERVICES="$DEP_SERVICES postgres"
+  fi
+  if echo "$COMPOSE_PROFILES" | grep -q "with-redis"; then
+    DEP_SERVICES="$DEP_SERVICES redis"
+  fi
+  if [ -n "$DEP_SERVICES" ]; then
+    log "Starting dependency services:$DEP_SERVICES"
+    IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS up -d $DEP_SERVICES
+  fi
+
   # Run with task, passing IMAGE_TAG to docker-compose
   IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS run -it --rm \
     -e SANDBOX_MODE="local" \
