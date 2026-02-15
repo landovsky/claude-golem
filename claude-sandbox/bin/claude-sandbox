@@ -505,6 +505,8 @@ spec:
       - name: claude
         image: \${CLAUDE_IMAGE}
         imagePullPolicy: Always
+        tty: true
+        stdin: true
         env:
 ${claude_env_vars}
         envFrom:
