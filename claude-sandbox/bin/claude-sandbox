@@ -19,6 +19,8 @@
 #   TELEGRAM_CHAT_ID    - Telegram chat ID for notifications
 #   REPO_BRANCH         - Branch to start from (default: main)
 #   CLAUDE_IMAGE        - Docker image for k8s (default: claude-sandbox:latest)
+#   HAPI_CLI_TOKEN      - Hapi shared secret for mobile/web control
+#   HAPI_API_URL        - Hapi hub URL (default: http://host.docker.internal:3006)
 
 set -e
 
@@ -197,15 +199,19 @@ usage() {
 Usage: claude-sandbox <command> [options]
 
 Commands:
-  local <task>     Run Claude locally with Docker Compose
-  remote <task>    Run Claude on k8s cluster
-  build [--force]  Build the Docker image (--force to rebuild without cache)
-  push             Push image to registry
-  logs             Follow logs of running k8s job
-  clean            Clean up completed k8s jobs
+  local [options] <task>  Run Claude locally with Docker Compose
+  remote <task>           Run Claude on k8s cluster
+  build [--force]         Build the Docker image (--force to rebuild without cache)
+  push                    Push image to registry
+  logs                    Follow logs of running k8s job
+  clean                   Clean up completed k8s jobs
+
+Local options:
+  -i, --interactive       Run interactively (no task required, opens Claude shell)
 
 Examples:
   claude-sandbox local "fix the login bug"
+  claude-sandbox local -i
   claude-sandbox remote "implement feature X"
   claude-sandbox build
 
@@ -215,6 +221,8 @@ Environment variables:
   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (optional, for notifications)
   REPO_BRANCH (optional, default: main)
   CLAUDE_IMAGE (optional, for remote)
+  HAPI_CLI_TOKEN (optional, enables Hapi mobile/web control)
+  HAPI_API_URL (optional, default: http://host.docker.internal:3006)
 
 To get OAuth token (uses your Claude subscription):
   claude setup-token
@@ -254,9 +262,29 @@ check_env() {
 }
 
 cmd_local() {
+  local interactive=false
+
+  # Parse options before the task
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -i|--interactive)
+        interactive=true
+        shift
+        ;;
+      -*)
+        error "Unknown option: $1"
+        usage
+        exit 1
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
   local task="$*"
-  if [ -z "$task" ]; then
-    error "Task is required"
+  if [ -z "$task" ] && [ "$interactive" = false ]; then
+    error "Task is required (or use -i for interactive mode)"
     usage
     exit 1
   fi
@@ -288,7 +316,11 @@ cmd_local() {
   fi
 
   log "Starting local sandbox..."
-  log "Task: $task"
+  if [ "$interactive" = true ]; then
+    log "Mode: interactive"
+  else
+    log "Task: $task"
+  fi
   log "Image: claude-sandbox:${IMAGE_TAG}"
 
   cd "$SANDBOX_DIR"
@@ -326,17 +358,33 @@ cmd_local() {
     INTERACTIVE_FLAGS="-T"
   fi
 
+  # Build env flags for docker compose run
+  local ENV_FLAGS=(
+    -e SANDBOX_MODE="local"
+    -e GITHUB_TOKEN="$GITHUB_TOKEN"
+    -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}"
+    -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+    -e REPO_URL="$REPO_URL"
+    -e REPO_BRANCH="${REPO_BRANCH:-main}"
+    -e TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+    -e TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+    -e HAPI_CLI_TOKEN="${HAPI_CLI_TOKEN:-}"
+    -e HAPI_API_URL="${HAPI_API_URL:-}"
+  )
+
+  if [ "$interactive" = true ]; then
+    ENV_FLAGS+=(-e INTERACTIVE="true")
+    # Task is optional in interactive mode but can still be passed as initial context
+    if [ -n "$task" ]; then
+      ENV_FLAGS+=(-e TASK="$task")
+    fi
+  else
+    ENV_FLAGS+=(-e TASK="$task")
+  fi
+
   # Run with task, passing IMAGE_TAG to docker-compose
   IMAGE_TAG="$IMAGE_TAG" docker compose $PROFILE_FLAGS run $INTERACTIVE_FLAGS --rm \
-    -e SANDBOX_MODE="local" \
-    -e TASK="$task" \
-    -e GITHUB_TOKEN="$GITHUB_TOKEN" \
-    -e CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-}" \
-    -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
-    -e REPO_URL="$REPO_URL" \
-    -e REPO_BRANCH="${REPO_BRANCH:-main}" \
-    -e TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}" \
-    -e TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}" \
+    "${ENV_FLAGS[@]}" \
     claude
 }
 

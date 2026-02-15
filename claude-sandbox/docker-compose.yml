@@ -66,6 +66,11 @@ services:
       CACHE_S3_PREFIX: ${CACHE_S3_PREFIX:-claude-sandbox-cache}
       CACHE_COMPRESSION: ${CACHE_COMPRESSION:-true}
       CACHE_VERBOSE: ${CACHE_VERBOSE:-false}
+      # Hapi (remote mobile/web control)
+      HAPI_CLI_TOKEN: ${HAPI_CLI_TOKEN:-}
+      HAPI_API_URL: ${HAPI_API_URL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # QUICK FIX FOR LOCAL TESTING - Remove for production/k8s
       # Persists workspace between runs to cache gems/node_modules

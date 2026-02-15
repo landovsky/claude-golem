@@ -58,8 +58,8 @@ if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
   exit 1
 fi
 
-if [ -z "$TASK" ]; then
-  error "TASK is required"
+if [ -z "${TASK:-}" ] && [ "${INTERACTIVE:-}" != "true" ]; then
+  error "TASK is required (or set INTERACTIVE=true)"
   exit 1
 fi
 
@@ -583,13 +583,46 @@ success "Claude setup complete"
 separator
 
 section "Claude Code Session"
-info "Task: $TASK"
-separator
 
-# Execute Claude with full permissions and live streaming output
-# bash
-exec claude --dangerously-skip-permissions -p "$TASK" \
-  --output-format stream-json \
-  --verbose \
-  --include-partial-messages | \
-  jq -rj 'select(.type == "stream_event" and .event.delta.type? == "text_delta") | .event.delta.text'
+# Determine if hapi wrapping is enabled
+CLAUDE_CMD="claude"
+if [ -n "$HAPI_CLI_TOKEN" ]; then
+  # Hapi reads CLI_API_TOKEN internally — map our env var to what it expects
+  export CLI_API_TOKEN="$HAPI_CLI_TOKEN"
+  # Default hub URL to host machine if not explicitly set
+  export HAPI_API_URL="${HAPI_API_URL:-http://host.docker.internal:3006}"
+  success "Hapi enabled (hub: $HAPI_API_URL)"
+  info "Session will appear in your Hapi PWA"
+  CLAUDE_CMD="hapi"
+else
+  info "Hapi disabled (set HAPI_CLI_TOKEN to enable)"
+fi
+
+if [ "${INTERACTIVE:-}" = "true" ] || [ "$CLAUDE_CMD" = "hapi" ]; then
+  # Hapi sessions are always interactive — the phone/PWA is the interface
+  if [ -n "${TASK:-}" ]; then
+    info "Task: $TASK"
+    info "Mode: interactive (hapi session)"
+  else
+    info "Interactive mode"
+  fi
+  separator
+
+  # Build claude args — task as positional arg starts an interactive session
+  # with the task as the first message (claude stays alive for hapi control)
+  if [ -n "${TASK:-}" ]; then
+    exec $CLAUDE_CMD --dangerously-skip-permissions "$TASK"
+  else
+    exec $CLAUDE_CMD --dangerously-skip-permissions
+  fi
+else
+  info "Task: $TASK"
+  separator
+
+  # Execute Claude with full permissions and live streaming output
+  exec claude --dangerously-skip-permissions -p "$TASK" \
+    --output-format stream-json \
+    --verbose \
+    --include-partial-messages | \
+    jq -rj 'select(.type == "stream_event" and .event.delta.type? == "text_delta") | .event.delta.text'
+fi

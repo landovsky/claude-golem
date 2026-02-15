@@ -73,7 +73,7 @@ RUN wget -O ruby-install.tar.gz https://github.com/postmodern/ruby-install/relea
     && gem install bundler
 
 # Install beads (bd) and Claude Code CLI
-RUN npm install -g @anthropic-ai/claude-code @beads/bd
+RUN npm install -g @anthropic-ai/claude-code @beads/bd @twsxtd/hapi
 
 # Install SOPS and age for encrypted secrets management
 RUN wget https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64 \
