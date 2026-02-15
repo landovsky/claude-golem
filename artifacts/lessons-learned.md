@@ -124,3 +124,23 @@
 ### Process improvements
 - **Analyst checklist addition**: When changing default database/service images, identify: (1) functional code to update, (2) reference templates to update, (3) test templates to update, (4) documentation examples that should NOT be updated (because they show user-configurable values).
 - **Backward compatibility simplifies planning**: When an upgrade is fully backward compatible (like PostgreSQL to PostGIS), the plan can be simpler - no feature flags, no detection logic, no conditional paths. Identify compatibility level early in analysis.
+
+## 2026-02-16 - Hapi integration for mobile/web control of Claude sandbox
+
+### What worked well
+- **Iterative local-first testing**: Testing hapi wrapping locally (docker-compose) before attempting k8s deployment caught issues early. The `claude "task"` positional arg discovery (vs `-p` which exits) was validated locally before going remote.
+- **Runtime fallback for missing binaries**: Adding `command -v hapi` check with `npm install -g` fallback in entrypoint.sh allowed testing on existing images before CI/CD rebuilt them. Good bridge pattern for phased rollouts.
+- **Pre-shared token simplicity**: Using a single `CLI_API_TOKEN` shared between hub and CLI is the simplest auth model. Mapping user-facing `HAPI_CLI_TOKEN` to hapi's internal `CLI_API_TOKEN` in entrypoint kept the interface clean.
+- **Local Docker verification before k8s**: Building and testing a standalone hapi-hub Dockerfile locally (`docker run -p 3007:3006`) revealed the glibc/musl incompatibility immediately. Without this step, we would have been debugging blind in k8s.
+
+### What to avoid
+- **Alpine images for compiled binaries**: The hapi binary is compiled against glibc. Running it on Alpine (musl libc) causes silent exit with code 0 and zero output — extremely hard to debug. Always check `ldd <binary>` when a compiled binary silently fails in a container. Use `node:22-slim` (Debian) instead of `node:22-alpine` for packages with native binaries.
+- **Guessing CLI flags**: The `--no-relay` flag was assumed from documentation but doesn't exist. `hapi hub` runs without relay by default; `hapi hub --relay` enables it. Always verify CLI flags with `--help` or source code before deploying.
+- **npm optional dependencies in containers**: npm doesn't always install platform-specific optional dependencies (like `@twsxtd/hapi-linux-arm64`) in container environments. Explicitly install the platform package: `ARCH=$(uname -m | sed 's/aarch64/arm64/; s/x86_64/x64/') && npm install -g @twsxtd/hapi @twsxtd/hapi-linux-${ARCH}`.
+- **Hub auto-generates tokens**: Even when `CLI_API_TOKEN` is set as an env var, hapi hub may generate its own token in `~/.hapi/settings.json` on first start. The settings.json value takes precedence. For k8s, either pre-populate settings.json on the PVC or manually update it after first boot.
+- **K8s TTY for interactive sessions**: Without `tty: true` and `stdin: true` on the k8s container spec, claude treats the session as non-interactive and exits after processing. Required for hapi-wrapped sessions.
+
+### Process improvements
+- **Test compiled binaries in target container first**: Before deploying to k8s, always run `docker run <image> ldd /path/to/binary` to verify dynamic linking. Add this to the debugging checklist for "binary runs but does nothing" scenarios.
+- **Flux kustomization registration**: New apps in the k3s repo need to be added to `clusters/production/kustomization.yaml` — just creating the app directory and Flux Kustomization CR isn't enough.
+- **ngrok free tier**: Limited to 1 simultaneous agent session. For multiple tunnels, use ngrok config with `tunnels:` section and `ngrok start --all`, or use a paid plan.
