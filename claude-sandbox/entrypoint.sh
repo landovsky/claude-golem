@@ -587,6 +587,12 @@ section "Claude Code Session"
 # Determine if hapi wrapping is enabled
 CLAUDE_CMD="claude"
 if [ -n "$HAPI_CLI_TOKEN" ]; then
+  # Install hapi at runtime if not baked into image
+  if ! command -v hapi &> /dev/null; then
+    action "Installing hapi (not in image yet)..."
+    npm install -g @twsxtd/hapi 2>&1 | tail -1
+    success "Hapi installed"
+  fi
   # Hapi reads CLI_API_TOKEN internally — map our env var to what it expects
   export CLI_API_TOKEN="$HAPI_CLI_TOKEN"
   # Default hub URL to host machine if not explicitly set
