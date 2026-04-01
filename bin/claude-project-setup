@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="${1:-}"
+
+if [ -z "$SOURCE" ]; then
+  echo "Usage: claude-project-setup <source-project-path>"
+  echo ""
+  echo "Scaffolds AI development files (CLAUDE.md, artifacts, etc.) for the"
+  echo "current project, using an existing project as a structural reference."
+  echo ""
+  echo "Run this from the root of the project you want to set up."
+  echo ""
+  echo "Example:"
+  echo "  cd ~/git/my-new-project"
+  echo "  claude-project-setup ~/git/existing-project-with-good-ai-files"
+  exit 1
+fi
+
+if [ ! -d "$SOURCE" ]; then
+  echo "Error: Source directory does not exist: $SOURCE"
+  exit 1
+fi
+
+SOURCE="$(cd "$SOURCE" && pwd)"
+
+exec claude -p "$(cat <<PROMPT
+You are setting up AI development files for the current project ($(pwd)).
+
+Use ${SOURCE} as a structural reference — it has well-organized AI dev files (CLAUDE.md, AGENTS.md, artifacts/) that you should learn from. Adapt the structure and format to this project, but populate with this project's actual tech stack, conventions, and architecture.
+
+## Steps
+
+1. Read the source project's AI dev files to understand the structure:
+   - ${SOURCE}/CLAUDE.md
+   - ${SOURCE}/AGENTS.md
+   - ${SOURCE}/artifacts/registry.json
+   - Any artifacts listed in the registry
+
+2. Explore THIS project thoroughly:
+   - Tech stack (check dependency files: Gemfile, package.json, go.mod, etc.)
+   - Directory layout and code organization
+   - Existing docs, CI/CD, Docker setup
+   - Conventions (linting configs, commit patterns, test framework)
+   - Deployment and infrastructure
+
+3. Create files in THIS project, adapted to what you found:
+   - CLAUDE.md — concise project quick reference (it loads every conversation, keep it lean)
+   - AGENTS.md — if the source has one, adapt it
+   - artifacts/registry.json — index of documentation artifacts
+   - Relevant artifacts based on what this project actually has (testing, API, database, deployment, etc.)
+   - A debugging workflow artifact
+
+4. Do NOT overwrite existing files without noting what you skipped.
+   Do NOT guess — mark unknowns as "TBD" rather than inventing details.
+   Do NOT create artifacts for features the project doesn't have.
+
+5. Report what you created and any recommended next steps.
+PROMPT
+)"
