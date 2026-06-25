@@ -5,10 +5,19 @@
 When running inside tmux ($TMUX is set), after understanding the user's task in your first response, rename the tmux window to a short task description (2-4 words, lowercase). Run this via Bash:
 
 ```bash
-tmux rename-window "short task name"
+tmux rename-window -t "$(tmux display-message -p -t "$TMUX_PANE" '#{window_id}')" "short task name"
 ```
 
 Do this once at the start, silently — no need to mention it to the user. If the window already has a descriptive name (not "claude" or a directory name), don't override it.
+
+## Messaging Tomáš on Telegram
+
+To send Tomáš a Telegram message, run `notify-tomas-telegram <bot> "your message"` (plain text is
+auto-escaped). Pick the bot by topic — **`devops`**: code, ops, deploys, CI, bugs, infra;
+**`assistant`**: personal/business chores, reminders, interests. The arg is mandatory, so choose
+deliberately. Requires `DEVOPS_TELEGRAM_NOTIFY_TOKEN` in the env. It goes through the
+devops-telegram `/notify` service — never use a raw Telegram bot token or chat id. Delivery is
+logged at https://devops-telegram.kopernici.cz/telegram/admin/events.
 
 ## Memory Store
 
